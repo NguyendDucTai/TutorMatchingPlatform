@@ -30,5 +30,12 @@ namespace TutorMatchingPlatform.API.Controllers
             var result = await _sender.Send(query);
             return Ok(result);
         }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] TutorMatchingPlatform.Application.Auth.Queries.RefreshToken.RefreshTokenQuery query)
+        {
+            var result = await _sender.Send(query);
+            return Ok(result);
+        }
     }
 }
