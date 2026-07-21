@@ -3,6 +3,7 @@ using TutorMatchingPlatform.Application.Interfaces;
 using TutorMatchingPlatform.Application.Interfaces.Authentication;
 using TutorMatchingPlatform.Infrastructure.Authentication;
 using TutorMatchingPlatform.Infrastructure.Data;
+using TutorMatchingPlatform.Infrastructure.Services;
 
 namespace TutorMatchingPlatform.Infrastructure
 {
@@ -16,6 +17,7 @@ namespace TutorMatchingPlatform.Infrastructure
 
             services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
             services.AddSingleton<IPasswordHasher, PasswordHasher>();
+            services.AddScoped<IFileService, LocalFileService>();
 
             return services;
         }
