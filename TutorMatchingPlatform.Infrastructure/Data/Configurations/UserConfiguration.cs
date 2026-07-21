@@ -27,6 +27,9 @@ namespace TutorMatchingPlatform.Infrastructure.Data.Configurations
             builder.Property(u => u.CreditBalance)
                 .HasColumnType("decimal(18,2)");
 
+            builder.Property(u => u.AvatarUrl)
+                .HasMaxLength(500);
+
             // Relationships
             builder.HasOne(u => u.TutorProfile)
                 .WithOne(t => t.User)
