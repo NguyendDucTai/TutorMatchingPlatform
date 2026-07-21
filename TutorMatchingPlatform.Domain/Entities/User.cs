@@ -11,6 +11,7 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
         public decimal CreditBalance { get; set; }
+        public string? AvatarUrl { get; set; }
         public bool IsSuspended { get; set; }
 
         // Navigation properties
