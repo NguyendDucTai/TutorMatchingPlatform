@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TutorMatchingPlatform.Application.Subjects.Commands.CreateSubject;
 using TutorMatchingPlatform.Application.Subjects.Commands.UpdateSubject;
+using TutorMatchingPlatform.Application.Subjects.Commands.DeleteSubject;
 using TutorMatchingPlatform.Application.Subjects.Queries.GetAllSubjects;
 
 namespace TutorMatchingPlatform.API.Controllers
@@ -36,11 +37,50 @@ namespace TutorMatchingPlatform.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Administrator")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateSubjectCommand command)
+        public async Task<IActionResult> UpdateSubject(int id, [FromBody] UpdateSubjectRequestDto request)
         {
-            command.Id = id;
+            var command = new UpdateSubjectCommand
+            {
+                Id = id,
+                Name = request.Name,
+                Description = request.Description
+            };
+
             var result = await _sender.Send(command);
+
+            if (!result)
+            {
+                return BadRequest();
+            }
+
             return Ok(new { Success = result });
         }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<IActionResult> DeleteSubject(int id)
+        {
+            var command = new DeleteSubjectCommand { Id = id };
+            var result = await _sender.Send(command);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+    }
+
+    public class CreateSubjectRequestDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
+    public class UpdateSubjectRequestDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }
