@@ -11,6 +11,7 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string MilestoneName { get; set; } = string.Empty;
         public DateTime? TargetDate { get; set; }
         public MilestoneStatus Status { get; set; }
+        public int CompletionPercentage { get; set; } = 0; // 0-100
 
         // Navigation properties
         public StudentProfile Student { get; set; } = null!;

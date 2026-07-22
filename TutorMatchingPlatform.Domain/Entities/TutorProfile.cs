@@ -8,7 +8,6 @@ namespace TutorMatchingPlatform.Domain.Entities
     {
         public int UserId { get; set; }
         public string? Qualifications { get; set; }
-        public decimal HourlyRate { get; set; }
         public ProfileStatus Status { get; set; }
         public string? Bio { get; set; }
         public string? FreeSchedulesJson { get; set; }

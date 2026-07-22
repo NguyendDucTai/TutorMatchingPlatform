@@ -44,7 +44,6 @@ namespace TutorMatchingPlatform.Application.Auth.Commands.Register
                 PasswordHash = hashedPassword,
                 Role = request.Role,
                 IsSuspended = false,
-                CreditBalance = 0,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -54,7 +53,6 @@ namespace TutorMatchingPlatform.Application.Auth.Commands.Register
                 user.TutorProfile = new TutorProfile
                 {
                     Status = ProfileStatus.Pending,
-                    HourlyRate = 0,
                     CreatedAt = DateTime.UtcNow
                 };
             }

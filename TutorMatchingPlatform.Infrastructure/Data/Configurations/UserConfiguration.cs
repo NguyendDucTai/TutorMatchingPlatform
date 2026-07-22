@@ -24,8 +24,6 @@ namespace TutorMatchingPlatform.Infrastructure.Data.Configurations
             builder.Property(u => u.PasswordHash)
                 .IsRequired();
 
-            builder.Property(u => u.CreditBalance)
-                .HasColumnType("decimal(18,2)");
 
             builder.Property(u => u.AvatarUrl)
                 .HasMaxLength(500);
@@ -41,10 +39,6 @@ namespace TutorMatchingPlatform.Infrastructure.Data.Configurations
                 .HasForeignKey<StudentProfile>(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(u => u.CreditRequests)
-                .WithOne(cr => cr.User)
-                .HasForeignKey(cr => cr.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
