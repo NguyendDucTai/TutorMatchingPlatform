@@ -9,7 +9,6 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string? StudyGoals { get; set; }
         public string? TargetSubjectsJson { get; set; }
 
-        // Navigation properties
         public User User { get; set; } = null!;
         public ICollection<Session> Sessions { get; set; } = new List<Session>();
         public ICollection<Feedback> FeedbacksReceived { get; set; } = new List<Feedback>();
