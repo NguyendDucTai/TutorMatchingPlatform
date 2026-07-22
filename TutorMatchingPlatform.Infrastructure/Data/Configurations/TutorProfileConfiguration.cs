@@ -10,9 +10,6 @@ namespace TutorMatchingPlatform.Infrastructure.Data.Configurations
         {
             builder.HasKey(t => t.Id);
 
-            builder.Property(t => t.HourlyRate)
-                .HasColumnType("decimal(18,2)");
-
             builder.Property(t => t.Qualifications)
                 .HasMaxLength(500);
 

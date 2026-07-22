@@ -23,7 +23,6 @@ namespace TutorMatchingPlatform.Infrastructure.Data
         public DbSet<LearningMilestone> LearningMilestones { get; set; } = null!;
         public DbSet<Feedback> Feedbacks { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
-        public DbSet<CreditRequest> CreditRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
