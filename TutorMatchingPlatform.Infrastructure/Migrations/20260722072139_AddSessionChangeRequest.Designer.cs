@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TutorMatchingPlatform.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using TutorMatchingPlatform.Infrastructure.Data;
 namespace TutorMatchingPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(TutorMatchingPlatformDbContext))]
-    partial class TutorMatchingPlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722072139_AddSessionChangeRequest")]
+    partial class AddSessionChangeRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,69 +24,6 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Complaint", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("ReportedUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ReporterId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ResolutionAction")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("ResolutionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("SessionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportedUserId");
-
-                    b.HasIndex("ReporterId");
-
-                    b.HasIndex("SessionId");
-
-                    b.ToTable("Complaints");
-                });
 
             modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Feedback", b =>
                 {
@@ -477,31 +417,6 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Complaint", b =>
-                {
-                    b.HasOne("TutorMatchingPlatform.Domain.Entities.User", "ReportedUser")
-                        .WithMany()
-                        .HasForeignKey("ReportedUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TutorMatchingPlatform.Domain.Entities.User", "Reporter")
-                        .WithMany()
-                        .HasForeignKey("ReporterId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("TutorMatchingPlatform.Domain.Entities.Session", "Session")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ReportedUser");
-
-                    b.Navigation("Reporter");
-
-                    b.Navigation("Session");
                 });
 
             modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Feedback", b =>

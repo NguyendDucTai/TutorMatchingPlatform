@@ -5,11 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorProfile;
 using TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorProfile;
 using TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProfiles;
+using TutorMatchingPlatform.Application.Complaints.Queries.GetPendingComplaints;
+using TutorMatchingPlatform.Application.Complaints.Commands.ResolveComplaint;
+using TutorMatchingPlatform.Domain.Enums;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
     [ApiController]
-    [Route("api/admin/tutor-profiles")]
+    [Route("api/admin")]
     [Authorize(Roles = "Administrator")]
     public class AdminController : ControllerBase
     {
@@ -20,14 +23,14 @@ namespace TutorMatchingPlatform.API.Controllers
             _sender = sender;
         }
 
-        [HttpGet("pending")]
+        [HttpGet("tutor-profiles/pending")]
         public async Task<IActionResult> GetPendingProfiles([FromQuery] int? subjectId)
         {
             var result = await _sender.Send(new GetPendingProfilesQuery { SubjectId = subjectId });
             return Ok(result);
         }
 
-        [HttpPost("{id}/approve")]
+        [HttpPost("tutor-profiles/{id}/approve")]
         public async Task<IActionResult> ApproveProfile(int id)
         {
             var command = new ApproveTutorProfileCommand { TutorProfileId = id };
@@ -35,7 +38,7 @@ namespace TutorMatchingPlatform.API.Controllers
             return Ok(new { Success = result });
         }
 
-        [HttpPost("{id}/reject")]
+        [HttpPost("tutor-profiles/{id}/reject")]
         public async Task<IActionResult> RejectProfile(int id, [FromBody] RejectProfileRequest request)
         {
             var command = new RejectTutorProfileCommand 
@@ -46,10 +49,47 @@ namespace TutorMatchingPlatform.API.Controllers
             var result = await _sender.Send(command);
             return Ok(new { Success = result });
         }
+
+        // UC-14: Review and Resolve Complaint
+        [HttpGet("complaints/pending")]
+        public async Task<IActionResult> GetPendingComplaints()
+        {
+            var query = new GetPendingComplaintsQuery();
+            var complaints = await _sender.Send(query);
+            return Ok(complaints);
+        }
+
+        [HttpPost("complaints/{id}/resolve")]
+        public async Task<IActionResult> ResolveComplaint(int id, [FromBody] ResolveComplaintRequestDto request)
+        {
+            var command = new ResolveComplaintCommand
+            {
+                ComplaintId = id,
+                Action = request.Action,
+                Reason = request.Reason,
+                SuspendDays = request.SuspendDays
+            };
+
+            var result = await _sender.Send(command);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { Message = result.Message });
+            }
+
+            return Ok(result);
+        }
     }
 
     public class RejectProfileRequest
     {
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class ResolveComplaintRequestDto
+    {
+        public ComplaintAction Action { get; set; }
+        public string? Reason { get; set; }
+        public int? SuspendDays { get; set; }
     }
 }
