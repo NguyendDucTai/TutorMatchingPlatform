@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TutorMatchingPlatform.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using TutorMatchingPlatform.Infrastructure.Data;
 namespace TutorMatchingPlatform.Infrastructure.Migrations
 {
     [DbContext(typeof(TutorMatchingPlatformDbContext))]
-    partial class TutorMatchingPlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722052608_AddSessionHeldAmountAndMilestoneCompletion")]
+    partial class AddSessionHeldAmountAndMilestoneCompletion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,39 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.CreditRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CreditRequests");
+                });
 
             modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Feedback", b =>
                 {
@@ -169,6 +205,9 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("HeldAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("MeetingLink")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -289,6 +328,9 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                     b.Property<string>("FreeSchedulesJson")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("HourlyRate")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Qualifications")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -327,6 +369,9 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<decimal>("CreditBalance")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -369,6 +414,17 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.CreditRequest", b =>
+                {
+                    b.HasOne("TutorMatchingPlatform.Domain.Entities.User", "User")
+                        .WithMany("CreditRequests")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.Feedback", b =>
@@ -515,6 +571,8 @@ namespace TutorMatchingPlatform.Infrastructure.Migrations
 
             modelBuilder.Entity("TutorMatchingPlatform.Domain.Entities.User", b =>
                 {
+                    b.Navigation("CreditRequests");
+
                     b.Navigation("StudentProfile");
 
                     b.Navigation("TutorProfile");

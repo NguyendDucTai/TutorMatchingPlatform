@@ -24,7 +24,6 @@ namespace TutorMatchingPlatform.Infrastructure.Data
                     Email = "admin@tutormatching.com",
                     PasswordHash = passwordHasher.HashPassword("Admin@123"),
                     Role = UserRole.Administrator,
-                    CreditBalance = 0,
                     IsSuspended = false,
                     CreatedAt = DateTime.UtcNow
                 };

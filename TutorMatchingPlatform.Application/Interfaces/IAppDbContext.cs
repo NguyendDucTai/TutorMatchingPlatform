@@ -15,7 +15,6 @@ namespace TutorMatchingPlatform.Application.Interfaces
         DbSet<LearningMilestone> LearningMilestones { get; }
         DbSet<Feedback> Feedbacks { get; }
         DbSet<Notification> Notifications { get; }
-        DbSet<CreditRequest> CreditRequests { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
