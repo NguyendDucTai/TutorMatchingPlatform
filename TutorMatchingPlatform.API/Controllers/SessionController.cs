@@ -23,6 +23,26 @@ namespace TutorMatchingPlatform.API.Controllers
             _sender = sender;
         }
 
+        [HttpGet("my-sessions")]
+        public async Task<IActionResult> GetMySessions([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            var query = new TutorMatchingPlatform.Application.Sessions.Queries.GetMySessions.GetMySessionsQuery
+            {
+                UserId = userId,
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+            var result = await _sender.Send(query);
+
+            return Ok(result);
+        }
+
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetSession(int id)
         {

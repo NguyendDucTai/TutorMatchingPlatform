@@ -27,6 +27,19 @@ namespace TutorMatchingPlatform.API.Controllers
             _sender = sender;
         }
 
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboard([FromQuery] string timeRange = "30days", [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+        {
+            var query = new TutorMatchingPlatform.Application.Admin.Queries.GetDashboardStatistics.GetDashboardStatisticsQuery
+            {
+                TimeRange = timeRange,
+                CustomStartDate = startDate,
+                CustomEndDate = endDate
+            };
+            var result = await _sender.Send(query);
+            return Ok(result);
+        }
+
         [HttpGet("tutors")]
         public async Task<IActionResult> GetTutors([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
