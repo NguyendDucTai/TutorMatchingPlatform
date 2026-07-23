@@ -14,6 +14,11 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string? AvatarUrl { get; set; }
         public bool IsSuspended { get; set; }
 
+        public int FailedLoginAttempts { get; set; }
+        public DateTime? LockoutEnd { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
+
         // Navigation properties
         public TutorProfile? TutorProfile { get; set; }
         public StudentProfile? StudentProfile { get; set; }

@@ -28,26 +28,51 @@ namespace TutorMatchingPlatform.Application.Auth.Queries.Login
 
             if (user == null)
             {
-                throw new Exception("Invalid email or password.");
+                throw new Exception("MSG09"); // Incorrect email or password
             }
 
             if (user.IsSuspended)
             {
-                throw new Exception("Account is suspended.");
+                throw new Exception("MSG10"); // Suspended/Locked
+            }
+
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
+            {
+                throw new Exception("MSG10"); // Account temporarily locked
             }
 
             var isPasswordValid = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
             if (!isPasswordValid)
             {
-                throw new Exception("Invalid email or password.");
+                user.FailedLoginAttempts++;
+                if (user.FailedLoginAttempts >= 5)
+                {
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(30);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    throw new Exception("MSG10"); // Account temporarily locked due to failed attempts
+                }
+                
+                await _context.SaveChangesAsync(cancellationToken);
+                throw new Exception("MSG09"); // Incorrect email or password
             }
 
+            // Successful login, reset lockout
+            user.FailedLoginAttempts = 0;
+            user.LockoutEnd = null;
+
             var token = _jwtTokenGenerator.GenerateToken(user);
+            
+            // Generate Refresh Token
+            user.RefreshToken = Guid.NewGuid().ToString("N");
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
+            await _context.SaveChangesAsync(cancellationToken);
 
             return new AuthenticationResult
             {
                 User = user,
-                Token = token
+                Token = token,
+                RefreshToken = user.RefreshToken
             };
         }
     }
