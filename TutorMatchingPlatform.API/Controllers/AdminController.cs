@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -7,6 +8,9 @@ using TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorProfil
 using TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProfiles;
 using TutorMatchingPlatform.Application.Complaints.Queries.GetPendingComplaints;
 using TutorMatchingPlatform.Application.Complaints.Commands.ResolveComplaint;
+using TutorMatchingPlatform.Application.Credits.Queries.GetPendingCreditRequests;
+using TutorMatchingPlatform.Application.Credits.Commands.ApproveCreditRequest;
+using TutorMatchingPlatform.Application.Credits.Commands.RejectCreditRequest;
 using TutorMatchingPlatform.Domain.Enums;
 
 namespace TutorMatchingPlatform.API.Controllers
@@ -79,6 +83,49 @@ namespace TutorMatchingPlatform.API.Controllers
 
             return Ok(result);
         }
+        [HttpGet("credits/pending")]
+        public async Task<IActionResult> GetPendingCreditRequests()
+        {
+            var query = new GetPendingCreditRequestsQuery();
+            var requests = await _sender.Send(query);
+            return Ok(requests);
+        }
+
+        [HttpPost("credits/{id}/approve")]
+        public async Task<IActionResult> ApproveCreditRequest(int id)
+        {
+            var adminIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(adminIdString, out int adminId)) return Unauthorized();
+
+            var command = new ApproveCreditRequestCommand { CreditRequestId = id, AdminUserId = adminId };
+            var result = await _sender.Send(command);
+
+            if (!result.Success) return BadRequest(new { Message = result.Message });
+            return Ok(result);
+        }
+
+        [HttpPost("credits/{id}/reject")]
+        public async Task<IActionResult> RejectCreditRequest(int id, [FromBody] RejectCreditRequestDto request)
+        {
+            var adminIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(adminIdString, out int adminId)) return Unauthorized();
+
+            var command = new RejectCreditRequestCommand 
+            { 
+                CreditRequestId = id, 
+                AdminUserId = adminId,
+                Reason = request.Reason
+            };
+            var result = await _sender.Send(command);
+
+            if (!result.Success) return BadRequest(new { Message = result.Message });
+            return Ok(result);
+        }
+    }
+
+    public class RejectCreditRequestDto
+    {
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class RejectProfileRequest
