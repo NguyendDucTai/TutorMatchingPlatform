@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using TutorMatchingPlatform.Domain.Entities;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -73,6 +74,26 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
                     milestone.Status = MilestoneStatus.Completed;
                     goalAutoCompleted = true;
                 }
+            }
+
+            // Transfer SessionFee to Tutor
+            var originalTransaction = await _context.CreditTransactions
+                .FirstOrDefaultAsync(ct => ct.ReferenceId == session.Id.ToString() && ct.Type == CreditTransactionType.SessionFee, cancellationToken);
+
+            if (originalTransaction != null)
+            {
+                decimal sessionFee = Math.Abs(originalTransaction.Amount);
+                session.Tutor.User.CreditBalance += sessionFee;
+
+                _context.CreditTransactions.Add(new CreditTransaction
+                {
+                    UserId = session.Tutor.User.Id,
+                    Amount = sessionFee,
+                    Type = CreditTransactionType.SessionFee,
+                    Description = "Earned session fee",
+                    ReferenceId = session.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
             await _context.SaveChangesAsync(cancellationToken);

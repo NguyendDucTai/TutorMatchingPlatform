@@ -39,6 +39,19 @@ namespace TutorMatchingPlatform.Infrastructure.Data.Configurations
                 .HasForeignKey<StudentProfile>(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.Property(u => u.CreditBalance)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+
+            builder.HasMany(u => u.CreditRequests)
+                .WithOne(cr => cr.User)
+                .HasForeignKey(cr => cr.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(u => u.CreditTransactions)
+                .WithOne(ct => ct.User)
+                .HasForeignKey(ct => ct.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
