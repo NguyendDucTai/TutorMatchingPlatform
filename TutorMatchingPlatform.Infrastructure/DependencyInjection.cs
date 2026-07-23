@@ -20,6 +20,9 @@ namespace TutorMatchingPlatform.Infrastructure
             services.AddScoped<IFileService, LocalFileService>();
             services.AddScoped<IEmailService, ConsoleEmailService>();
 
+            services.AddHostedService<BackgroundJobs.LateCancellationAutoFlagJob>();
+            services.AddHostedService<BackgroundJobs.ReputationScoreCalculationJob>();
+
             return services;
         }
     }
