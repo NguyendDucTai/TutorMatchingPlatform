@@ -27,10 +27,17 @@ namespace TutorMatchingPlatform.API.Controllers
             _sender = sender;
         }
 
-        [HttpGet("tutor-profiles/pending")]
-        public async Task<IActionResult> GetPendingProfiles([FromQuery] int? subjectId)
+        [HttpGet("tutors")]
+        public async Task<IActionResult> GetTutors([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _sender.Send(new GetPendingProfilesQuery { SubjectId = subjectId });
+            var result = await _sender.Send(new TutorMatchingPlatform.Application.TutorProfiles.Queries.GetAllTutors.GetAllTutorsQuery { PageNumber = pageNumber, PageSize = pageSize });
+            return Ok(result);
+        }
+
+        [HttpGet("tutor-profiles/pending")]
+        public async Task<IActionResult> GetPendingProfiles()
+        {
+            var result = await _sender.Send(new GetPendingProfilesQuery());
             return Ok(result);
         }
 

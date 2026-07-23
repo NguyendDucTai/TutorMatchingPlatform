@@ -27,13 +27,6 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProf
 
             var list = await query.ToListAsync(cancellationToken);
 
-            // Filter by subject manually since SubjectsJson is a JSON string
-            if (request.SubjectId.HasValue)
-            {
-                var searchToken = $"\"SubjectId\":{request.SubjectId.Value}";
-                list = list.Where(u => u.TutorProfile!.SubjectsJson != null && u.TutorProfile.SubjectsJson.Replace(" ", "").Contains(searchToken)).ToList();
-            }
-
             return list.Select(u => new TutorProfileDto
             {
                 Id = u.TutorProfile!.Id,
