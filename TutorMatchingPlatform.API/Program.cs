@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using TutorMatchingPlatform.Application;
 using TutorMatchingPlatform.Infrastructure;
 using TutorMatchingPlatform.Infrastructure.Data;
-
+using TutorMatchingPlatform.API;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -16,34 +16,17 @@ builder.Services.AddInfrastructure();
 builder.Services.AddDbContext<TutorMatchingPlatformDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]!))
-        };
-    });
-
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
-builder.Services.AddSwaggerGen();
+builder.Services.AddApiServices(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        .AllowAnyMethod()
+        .AllowAnyHeader();
     });
 });
+
 
 
 var app = builder.Build();
