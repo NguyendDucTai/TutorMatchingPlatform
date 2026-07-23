@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TutorMatchingPlatform.Application.Auth.Commands.SetupTutorProfile;
 using TutorMatchingPlatform.Application.Interfaces;
+using TutorMatchingPlatform.Application.Tutors.Queries.SearchTutors;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
@@ -73,6 +74,30 @@ namespace TutorMatchingPlatform.API.Controllers
 
             var result = await _sender.Send(command);
             return Ok(new { Success = result });
+        }
+
+        [HttpGet("search")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Search(
+            [FromQuery] int subjectId,
+            [FromQuery] decimal? minRate,
+            [FromQuery] decimal? maxRate,
+            [FromQuery] string? studentScheduleJson,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var query = new SearchTutorsQuery
+            {
+                SubjectId = subjectId,
+                MinRate = minRate,
+                MaxRate = maxRate,
+                StudentScheduleJson = studentScheduleJson,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _sender.Send(query);
+            return Ok(result);
         }
     }
 }
