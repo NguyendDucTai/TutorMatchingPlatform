@@ -63,6 +63,7 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
                     return new RecordSessionResultResult { Success = false, Message = "Milestone not found." };
 
                 milestone.CompletionPercentage = request.CompletionPercentage.Value;
+                session.GoalCompletionPercentage = request.CompletionPercentage.Value;
 
                 // Auto-mark In Progress if not started
                 if (milestone.Status == MilestoneStatus.NotStarted && request.CompletionPercentage.Value > 0)
