@@ -12,10 +12,12 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorPr
     public class RejectTutorProfileCommandHandler : IRequestHandler<RejectTutorProfileCommand, bool>
     {
         private readonly IAppDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public RejectTutorProfileCommandHandler(IAppDbContext context)
+        public RejectTutorProfileCommandHandler(IAppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<bool> Handle(RejectTutorProfileCommand request, CancellationToken cancellationToken)
@@ -50,6 +52,8 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorPr
 
             await _context.Notifications.AddAsync(notification, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _emailService.SendEmailAsync(profile.Email, notification.Title, notification.Message);
 
             // Log activity
             Console.WriteLine($"[ActivityLog] Administrator rejected TutorProfile {request.TutorProfileId} at {DateTime.UtcNow}. Reason: {request.Reason}");

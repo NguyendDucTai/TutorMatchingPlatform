@@ -12,10 +12,12 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.RespondToSessionCh
     public class RespondToSessionChangeCommandHandler : IRequestHandler<RespondToSessionChangeCommand, RespondToSessionChangeResult>
     {
         private readonly IAppDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public RespondToSessionChangeCommandHandler(IAppDbContext context)
+        public RespondToSessionChangeCommandHandler(IAppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<RespondToSessionChangeResult> Handle(RespondToSessionChangeCommand request, CancellationToken cancellationToken)
@@ -91,6 +93,14 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.RespondToSessionCh
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Send Email Notifications
+            string messageCode = request.Accept ? "MSG03" : "DeclineMsg";
+            string subject = request.Accept ? "Change Request Accepted" : "Change Request Declined";
+            string body = $"Your session change request has been {(request.Accept ? "accepted" : "declined")}. {messageCode}";
+            
+            var requesterEmail = changeRequest.RequesterId == session.Tutor.User.Id ? session.Tutor.User.Email : session.Student.User.Email;
+            await _emailService.SendEmailAsync(requesterEmail, subject, body);
 
             return new RespondToSessionChangeResult
             {

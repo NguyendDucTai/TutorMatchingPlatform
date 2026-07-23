@@ -31,5 +31,16 @@ namespace TutorMatchingPlatform.Infrastructure.Services
 
             return Task.CompletedTask;
         }
+
+        public Task SendEmailAsync(string toEmail, string subject, string body)
+        {
+            _logger.LogInformation(
+                "[EMAIL SERVICE] To: {Email} | Subject: {Subject} | Body: {Body}",
+                toEmail,
+                subject,
+                body);
+
+            return Task.CompletedTask;
+        }
     }
 }
