@@ -6,6 +6,5 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProf
 {
     public class GetPendingProfilesQuery : IRequest<List<TutorProfileDto>>
     {
-        public int? SubjectId { get; set; }
     }
 }
