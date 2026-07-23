@@ -8,12 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 using TutorMatchingPlatform.Application.Auth.Commands.SetupTutorProfile;
 using TutorMatchingPlatform.Application.Interfaces;
 using TutorMatchingPlatform.Application.Tutors.Queries.SearchTutors;
+using TutorMatchingPlatform.Application.Tutors.Queries.GetTutorDetails;
+using TutorMatchingPlatform.Application.Tutors.Queries.GetTutorFeedbacks;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
     [ApiController]
     [Route("api/tutor")]
-    [Authorize(Roles = "Tutor")]
     public class TutorController : ControllerBase
     {
         private readonly ISender _sender;
@@ -24,6 +25,7 @@ namespace TutorMatchingPlatform.API.Controllers
         }
 
         [HttpPost("setup-profile")]
+        [Authorize(Roles = "Tutor")]
         public async Task<IActionResult> SetupProfile(
             [FromForm] string fullName,
             [FromForm] string? bio,
@@ -97,6 +99,41 @@ namespace TutorMatchingPlatform.API.Controllers
             };
 
             var result = await _sender.Send(query);
+            return Ok(result);
+        }
+
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTutorDetails(int id)
+        {
+            var query = new GetTutorDetailsQuery { TutorId = id };
+            var result = await _sender.Send(query);
+            
+            if (result == null)
+            {
+                return NotFound(new { Message = "Tutor not found." });
+            }
+            
+            return Ok(result);
+        }
+
+        [HttpGet("{id}/feedbacks")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTutorFeedbacks(int id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var query = new GetTutorFeedbacksQuery 
+            { 
+                TutorId = id, 
+                PageNumber = pageNumber, 
+                PageSize = pageSize 
+            };
+            var result = await _sender.Send(query);
+            
+            if (result == null)
+            {
+                return NotFound(new { Message = "Tutor not found." });
+            }
+            
             return Ok(result);
         }
     }

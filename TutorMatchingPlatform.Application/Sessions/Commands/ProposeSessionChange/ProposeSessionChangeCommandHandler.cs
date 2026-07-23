@@ -79,6 +79,35 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.ProposeSessionChan
 
             // Log or notify the other party (MSG03/MSG12 logic)
             // System sends the request to the other party...
+            
+            if (isLate)
+            {
+                // Find original session fee
+                var originalTransaction = await _context.CreditTransactions
+                    .FirstOrDefaultAsync(ct => ct.ReferenceId == session.Id.ToString() && ct.Type == CreditTransactionType.SessionFee, cancellationToken);
+                
+                decimal sessionFee = originalTransaction != null ? Math.Abs(originalTransaction.Amount) : 0;
+                decimal lateFee = sessionFee * 0.3m; // 30%
+
+                if (lateFee > 0)
+                {
+                    // Deduct from requester
+                    var requesterUser = request.RequesterUserId == session.Student.User.Id ? session.Student.User : session.Tutor.User;
+                    requesterUser.CreditBalance -= lateFee;
+
+                    _context.CreditTransactions.Add(new CreditTransaction
+                    {
+                        UserId = requesterUser.Id,
+                        Amount = -lateFee,
+                        Type = CreditTransactionType.LateCancellationFee,
+                        Description = "Late change fee (30%)",
+                        ReferenceId = session.Id.ToString(),
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             return new ProposeSessionChangeResult
             {
