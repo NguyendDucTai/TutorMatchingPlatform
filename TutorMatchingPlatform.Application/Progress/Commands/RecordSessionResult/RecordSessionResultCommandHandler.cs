@@ -41,7 +41,7 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
 
             // 4. MSG02: Block saving if score is blank AND no goal selected
             bool hasScore = request.Score.HasValue;
-            bool hasGoal = request.MilestoneId.HasValue;
+            bool hasGoal = request.MilestoneId.HasValue || !string.IsNullOrWhiteSpace(request.NewMilestoneName);
             if (!hasScore && !hasGoal)
                 return new RecordSessionResultResult { Success = false, Message = "MSG02" };
 
@@ -56,11 +56,26 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
             bool goalAutoCompleted = false;
             if (hasGoal && request.CompletionPercentage.HasValue)
             {
-                var milestone = await _context.LearningMilestones
-                    .SingleOrDefaultAsync(m => m.Id == request.MilestoneId!.Value, cancellationToken);
+                LearningMilestone? milestone;
+                if (request.MilestoneId.HasValue)
+                {
+                    milestone = await _context.LearningMilestones
+                        .SingleOrDefaultAsync(m => m.Id == request.MilestoneId!.Value, cancellationToken);
 
-                if (milestone == null)
-                    return new RecordSessionResultResult { Success = false, Message = "Milestone not found." };
+                    if (milestone == null)
+                        return new RecordSessionResultResult { Success = false, Message = "Milestone not found." };
+                }
+                else
+                {
+                    milestone = new LearningMilestone
+                    {
+                        StudentId = session.StudentId,
+                        SubjectId = session.SubjectId,
+                        MilestoneName = request.NewMilestoneName!,
+                        Status = MilestoneStatus.NotStarted
+                    };
+                    _context.LearningMilestones.Add(milestone);
+                }
 
                 milestone.CompletionPercentage = request.CompletionPercentage.Value;
                 session.GoalCompletionPercentage = request.CompletionPercentage.Value;

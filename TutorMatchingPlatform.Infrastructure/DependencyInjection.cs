@@ -17,6 +17,7 @@ namespace TutorMatchingPlatform.Infrastructure
 
             services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
             services.AddSingleton<IPasswordHasher, PasswordHasher>();
+            services.AddSingleton<ILateCancellationQueue, LateCancellationQueue>();
             services.AddScoped<IFileService, LocalFileService>();
             services.AddScoped<IEmailService, ConsoleEmailService>();
 

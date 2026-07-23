@@ -17,6 +17,7 @@ builder.Services.AddDbContext<TutorMatchingPlatformDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddApiServices(builder.Configuration);
+builder.Services.AddHostedService<TutorMatchingPlatform.API.BackgroundServices.LateCancellationFlagWorker>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>

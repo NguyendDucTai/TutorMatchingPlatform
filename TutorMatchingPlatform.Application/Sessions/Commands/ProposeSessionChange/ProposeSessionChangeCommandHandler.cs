@@ -12,10 +12,12 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.ProposeSessionChan
     public class ProposeSessionChangeCommandHandler : IRequestHandler<ProposeSessionChangeCommand, ProposeSessionChangeResult>
     {
         private readonly IAppDbContext _context;
+        private readonly ILateCancellationQueue _queue;
 
-        public ProposeSessionChangeCommandHandler(IAppDbContext context)
+        public ProposeSessionChangeCommandHandler(IAppDbContext context, ILateCancellationQueue queue)
         {
             _context = context;
+            _queue = queue;
         }
 
         public async Task<ProposeSessionChangeResult> Handle(ProposeSessionChangeCommand request, CancellationToken cancellationToken)
@@ -106,6 +108,9 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.ProposeSessionChan
                     });
 
                     await _context.SaveChangesAsync(cancellationToken);
+
+                    // Trigger the background job to check if this user has exceeded the late cancellation limit
+                    await _queue.QueueUserForCheckAsync(requesterUser.Id, cancellationToken);
                 }
             }
 

@@ -13,6 +13,7 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
 
         // Optional: Update an existing goal's completion %
         public int? MilestoneId { get; set; }
+        public string? NewMilestoneName { get; set; }
         public int? CompletionPercentage { get; set; } // 0-100
     }
 }
