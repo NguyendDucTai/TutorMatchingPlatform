@@ -57,6 +57,26 @@ namespace TutorMatchingPlatform.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("goals")]
+        [Authorize] // Allow both Student and Tutor
+        public async Task<IActionResult> GetGoals([FromQuery] int subjectId)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            var query = new TutorMatchingPlatform.Application.Progress.Queries.GetLearningGoals.GetLearningGoalsQuery
+            {
+                UserId = userId,
+                SubjectId = subjectId
+            };
+
+            var result = await _sender.Send(query);
+            return Ok(result);
+        }
+
         [HttpGet("chart")]
         [Authorize] // Allow both Student and Tutor
         public async Task<IActionResult> GetChart([FromQuery] int subjectId, [FromQuery] string timeRange = "30days")
