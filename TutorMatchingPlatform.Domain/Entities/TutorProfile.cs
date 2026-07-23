@@ -13,6 +13,7 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string? FreeSchedulesJson { get; set; }
         public string? TimezoneOffset { get; set; }
         public string? SubjectsJson { get; set; }
+        public double ReputationScore { get; set; }
 
         // Navigation properties
         public User User { get; set; } = null!;

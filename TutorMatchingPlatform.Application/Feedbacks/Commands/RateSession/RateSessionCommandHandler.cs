@@ -75,6 +75,34 @@ namespace TutorMatchingPlatform.Application.Feedbacks.Commands.RateSession
             };
 
             _context.Feedbacks.Add(feedback);
+            
+            // PB-021: Recalculate ReputationScore immediately if the receiver is a Tutor
+            if (request.SenderUserId == session.Student.User.Id) // Student rating Tutor
+            {
+                var thresholdDate = DateTime.UtcNow.AddDays(-90);
+                var tutorProfile = await _context.Users
+                    .Where(u => u.Id == receiverId)
+                    .Select(u => u.TutorProfile)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (tutorProfile != null)
+                {
+                    // Including the new feedback in memory calculation since it's not saved yet, 
+                    // or we save first, then query. Let's save first.
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    var recentFeedbacks = await _context.Feedbacks
+                        .Where(f => f.ReceiverId == receiverId && f.CreatedAt >= thresholdDate)
+                        .ToListAsync(cancellationToken);
+
+                    tutorProfile.ReputationScore = recentFeedbacks.Any() 
+                        ? Math.Round(recentFeedbacks.Average(f => f.Rating), 2) 
+                        : 0.0;
+                        
+                    _context.TutorProfiles.Update(tutorProfile);
+                }
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
 
             return new RateSessionResult

@@ -23,6 +23,20 @@ namespace TutorMatchingPlatform.API.Controllers
             _sender = sender;
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetSession(int id)
+        {
+            var query = new TutorMatchingPlatform.Application.Sessions.Queries.GetSessionById.GetSessionByIdQuery { SessionId = id };
+            var result = await _sender.Send(query);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(result);
+        }
+
         // UC-04: Book a Session (Student only)
         [HttpPost("book")]
         [Authorize(Roles = "Student")]
@@ -108,6 +122,39 @@ namespace TutorMatchingPlatform.API.Controllers
 
             return Ok(result);
         }
+
+        // UC-07: PB-016 Join Online Session (Update meeting link by Tutor)
+        [HttpPatch("{id:int}/meeting-link")]
+        [Authorize(Roles = "Tutor")]
+        public async Task<IActionResult> UpdateMeetingLink(int id, [FromBody] UpdateMeetingLinkRequestDto request)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int tutorId))
+            {
+                return Unauthorized();
+            }
+
+            var command = new TutorMatchingPlatform.Application.Sessions.Commands.UpdateMeetingLink.UpdateMeetingLinkCommand
+            {
+                SessionId = id,
+                TutorUserId = tutorId,
+                MeetingLink = request.MeetingLink
+            };
+
+            var result = await _sender.Send(command);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { Message = result.Message });
+            }
+
+            return Ok(result);
+        }
+    }
+
+    public class UpdateMeetingLinkRequestDto
+    {
+        public string MeetingLink { get; set; } = string.Empty;
     }
 
     // DTOs

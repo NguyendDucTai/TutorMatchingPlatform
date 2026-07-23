@@ -60,10 +60,7 @@ namespace TutorMatchingPlatform.Application.Tutors.Queries.SearchTutors
 
             var results = approvedTutors.Select(u =>
             {
-                var feedbacks = u.TutorProfile!.FeedbacksReceived?.ToList() ?? new();
-                double reputationScore = feedbacks.Count > 0
-                    ? feedbacks.Average(f => f.Rating)
-                    : 0.0;
+                double reputationScore = u.TutorProfile!.ReputationScore;
 
                 int overlapMinutes = 0;
                 if (studentSlots.Count > 0)
