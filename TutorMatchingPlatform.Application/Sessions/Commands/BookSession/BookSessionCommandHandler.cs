@@ -15,10 +15,12 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
     public class BookSessionCommandHandler : IRequestHandler<BookSessionCommand, BookSessionResult>
     {
         private readonly IAppDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public BookSessionCommandHandler(IAppDbContext context)
+        public BookSessionCommandHandler(IAppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<BookSessionResult> Handle(BookSessionCommand request, CancellationToken cancellationToken)
@@ -118,6 +120,9 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
             await _context.SaveChangesAsync(cancellationToken);
 
             // 5. Return success (MSG03)
+            await _emailService.SendEmailAsync(studentUser.Email, "Booking Confirmed", $"Your session for subject {request.SubjectId} is confirmed. MSG03");
+            await _emailService.SendEmailAsync(tutorUser.Email, "New Booking", $"You have a new booking from {studentUser.FullName}. MSG03");
+
             return new BookSessionResult
             {
                 Success = true,

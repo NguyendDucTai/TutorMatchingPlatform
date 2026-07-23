@@ -12,10 +12,12 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorP
     public class ApproveTutorProfileCommandHandler : IRequestHandler<ApproveTutorProfileCommand, bool>
     {
         private readonly IAppDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public ApproveTutorProfileCommandHandler(IAppDbContext context)
+        public ApproveTutorProfileCommandHandler(IAppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<bool> Handle(ApproveTutorProfileCommand request, CancellationToken cancellationToken)
@@ -57,6 +59,8 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorP
 
             await _context.Notifications.AddAsync(notification, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _emailService.SendEmailAsync(profile.Email, notification.Title, notification.Message);
 
             // In a real app, you might also use ILogger to log "records the action in the Activity Log" here.
             Console.WriteLine($"[ActivityLog] Administrator approved TutorProfile {request.TutorProfileId} at {DateTime.UtcNow}");

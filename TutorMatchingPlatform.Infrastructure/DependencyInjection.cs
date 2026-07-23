@@ -22,6 +22,7 @@ namespace TutorMatchingPlatform.Infrastructure
 
             services.AddHostedService<BackgroundJobs.LateCancellationAutoFlagJob>();
             services.AddHostedService<BackgroundJobs.ReputationScoreCalculationJob>();
+            services.AddHostedService<BackgroundJobs.SessionReminderJob>();
 
             return services;
         }

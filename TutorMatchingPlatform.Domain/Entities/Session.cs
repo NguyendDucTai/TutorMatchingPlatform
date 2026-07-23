@@ -18,6 +18,7 @@ namespace TutorMatchingPlatform.Domain.Entities
         public double? Score { get; set; }
         public string? TutorComment { get; set; }
         public int? GoalCompletionPercentage { get; set; }
+        public bool ReminderSent { get; set; } = false;
 
         // Navigation properties
         public TutorProfile Tutor { get; set; } = null!;
