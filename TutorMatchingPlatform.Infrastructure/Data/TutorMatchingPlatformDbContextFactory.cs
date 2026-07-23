@@ -8,7 +8,7 @@ namespace TutorMatchingPlatform.Infrastructure.Data
         public TutorMatchingPlatformDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<TutorMatchingPlatformDbContext>();
-            optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=TutorMatchingDB;Trusted_Connection=True;MultipleActiveResultSets=true");
+            optionsBuilder.UseSqlServer("Data Source=PCCUATAI;Initial Catalog=TutorMatchingPlatformDb;Integrated Security=True;Trust Server Certificate=True");
 
             return new TutorMatchingPlatformDbContext(optionsBuilder.Options);
         }

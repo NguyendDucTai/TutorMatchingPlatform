@@ -136,5 +136,26 @@ namespace TutorMatchingPlatform.API.Controllers
             
             return Ok(result);
         }
+
+        [HttpPut("me/availability")]
+        [Authorize(Roles = "Tutor")]
+        public async Task<IActionResult> UpdateAvailability([FromBody] TutorMatchingPlatform.Application.Tutors.Commands.UpdateTutorAvailability.UpdateTutorAvailabilityCommand command)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            command.UserId = userId;
+            var result = await _sender.Send(command);
+
+            if (!result)
+            {
+                return BadRequest(new { Message = "Failed to update availability. Make sure your tutor profile is set up." });
+            }
+
+            return Ok(new { Success = true });
+        }
     }
 }
