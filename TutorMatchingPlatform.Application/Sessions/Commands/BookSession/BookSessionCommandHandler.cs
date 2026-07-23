@@ -43,7 +43,8 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
                 return new BookSessionResult { Success = false, Message = "Tutor is not approved." };
             }
 
-            // 2. Validate tutor teaches this subject (no payment logic)
+            // 2. Validate tutor teaches this subject and process payment
+            decimal sessionFee = 0;
             try
             {
                 var subjects = JsonSerializer.Deserialize<List<SubjectRateEntry>>(tutorUser.TutorProfile.SubjectsJson ?? "[]") ?? new();
@@ -52,10 +53,16 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
                 {
                     return new BookSessionResult { Success = false, Message = "Tutor does not teach this subject." };
                 }
+                sessionFee = subjectMatch.Rate;
             }
             catch
             {
                 return new BookSessionResult { Success = false, Message = "Invalid tutor subjects configuration." };
+            }
+
+            if (studentUser.CreditBalance < sessionFee)
+            {
+                return new BookSessionResult { Success = false, Message = "Insufficient credits to book this session." };
             }
 
             // 3. Conflict Detection Job (BR-01, BR-02)
@@ -89,7 +96,25 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
                 CreatedAt = DateTime.UtcNow
             };
 
+            // Deduct credits from student
+            studentUser.CreditBalance -= sessionFee;
+
+            var transaction = new CreditTransaction
+            {
+                UserId = studentUser.Id,
+                Amount = -sessionFee,
+                Type = CreditTransactionType.SessionFee,
+                Description = "Paid session fee for booking",
+                CreatedAt = DateTime.UtcNow
+                // ReferenceId will be set after session gets its Id
+            };
+
             _context.Sessions.Add(session);
+            _context.CreditTransactions.Add(transaction);
+            
+            await _context.SaveChangesAsync(cancellationToken);
+
+            transaction.ReferenceId = session.Id.ToString();
             await _context.SaveChangesAsync(cancellationToken);
 
             // 5. Return success (MSG03)

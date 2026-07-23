@@ -25,6 +25,8 @@ namespace TutorMatchingPlatform.Infrastructure.Data
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<SessionChangeRequest> SessionChangeRequests { get; set; } = null!;
         public DbSet<Complaint> Complaints { get; set; } = null!;
+        public DbSet<CreditRequest> CreditRequests { get; set; } = null!;
+        public DbSet<CreditTransaction> CreditTransactions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,4 +1,6 @@
+using System;
 using System.Threading;
+using TutorMatchingPlatform.Domain.Entities;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +54,26 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.RespondToSessionCh
                 if (changeRequest.ChangeType == SessionChangeType.Cancel)
                 {
                     session.Status = SessionStatus.Cancelled;
+
+                    // Refund SessionFee to Student
+                    var originalTransaction = await _context.CreditTransactions
+                        .FirstOrDefaultAsync(ct => ct.ReferenceId == session.Id.ToString() && ct.Type == CreditTransactionType.SessionFee, cancellationToken);
+
+                    if (originalTransaction != null)
+                    {
+                        decimal refundAmount = Math.Abs(originalTransaction.Amount);
+                        session.Student.User.CreditBalance += refundAmount;
+
+                        _context.CreditTransactions.Add(new CreditTransaction
+                        {
+                            UserId = session.Student.User.Id,
+                            Amount = refundAmount,
+                            Type = CreditTransactionType.Refund,
+                            Description = "Refund for cancelled session",
+                            ReferenceId = session.Id.ToString(),
+                            CreatedAt = System.DateTime.UtcNow
+                        });
+                    }
                 }
                 else if (changeRequest.ChangeType == SessionChangeType.Reschedule)
                 {

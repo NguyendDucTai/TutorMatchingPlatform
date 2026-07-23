@@ -17,8 +17,16 @@ namespace TutorMatchingPlatform.Domain.Entities
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiryTime { get; set; }
 
+        // Password reset
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiry { get; set; }
+
+        public decimal CreditBalance { get; set; } = 0;
+
         // Navigation properties
         public TutorProfile? TutorProfile { get; set; }
         public StudentProfile? StudentProfile { get; set; }
+        public ICollection<CreditRequest> CreditRequests { get; set; } = new List<CreditRequest>();
+        public ICollection<CreditTransaction> CreditTransactions { get; set; } = new List<CreditTransaction>();
     }
 }
