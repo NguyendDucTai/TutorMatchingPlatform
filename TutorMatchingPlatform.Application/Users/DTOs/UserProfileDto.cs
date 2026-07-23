@@ -14,6 +14,7 @@ namespace TutorMatchingPlatform.Application.Users.DTOs
         public string? Qualifications { get; set; }
         public string? SubjectsJson { get; set; }
         public string? FreeSchedulesJson { get; set; }
+        public string? TimezoneOffset { get; set; }
         public string? TutorStatus { get; set; }
 
         // Student specific fields

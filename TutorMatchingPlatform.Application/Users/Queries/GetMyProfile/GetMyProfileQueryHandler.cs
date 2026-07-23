@@ -41,6 +41,7 @@ namespace TutorMatchingPlatform.Application.Users.Queries.GetMyProfile
                 dto.Qualifications = user.TutorProfile.Qualifications;
                 dto.SubjectsJson = user.TutorProfile.SubjectsJson;
                 dto.FreeSchedulesJson = user.TutorProfile.FreeSchedulesJson;
+                dto.TimezoneOffset = user.TutorProfile.TimezoneOffset;
                 dto.TutorStatus = user.TutorProfile.Status.ToString();
             }
 

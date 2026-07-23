@@ -11,6 +11,7 @@ namespace TutorMatchingPlatform.Domain.Entities
         public ProfileStatus Status { get; set; }
         public string? Bio { get; set; }
         public string? FreeSchedulesJson { get; set; }
+        public string? TimezoneOffset { get; set; }
         public string? SubjectsJson { get; set; }
 
         // Navigation properties
