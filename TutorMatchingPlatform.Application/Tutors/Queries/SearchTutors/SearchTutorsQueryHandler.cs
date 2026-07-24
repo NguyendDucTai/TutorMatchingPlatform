@@ -97,7 +97,7 @@ namespace TutorMatchingPlatform.Application.Tutors.Queries.SearchTutors
                 return new SearchTutorsResult
                 {
                     HasResults = false,
-                    Message = "MSG01",
+                    Message = "No matching results found.",
                     Tutors = new(),
                     TotalCount = 0,
                     PageNumber = request.PageNumber,

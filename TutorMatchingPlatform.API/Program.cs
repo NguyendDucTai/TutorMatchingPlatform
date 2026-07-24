@@ -50,6 +50,36 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Hack to fix Swashbuckle .NET 10 Preview serialization bug for SecurityRequirements
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path == "/swagger/v1/swagger.json")
+        {
+            var originalBodyStream = context.Response.Body;
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await next();
+
+            context.Response.Body = originalBodyStream;
+            responseBody.Seek(0, SeekOrigin.Begin);
+            
+            var json = await new StreamReader(responseBody).ReadToEndAsync();
+            
+            // Regex to robustly find the empty security requirement object, regardless of spacing or newlines
+            json = System.Text.RegularExpressions.Regex.Replace(
+                json, 
+                @"""security""\s*:\s*\[\s*\{\s*\}\s*\]", 
+                "\"security\": [ { \"Bearer\": [ ] } ]");
+                       
+            await context.Response.WriteAsync(json);
+        }
+        else
+        {
+            await next();
+        }
+    });
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }

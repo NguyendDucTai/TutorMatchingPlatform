@@ -28,17 +28,17 @@ namespace TutorMatchingPlatform.Application.Auth.Queries.Login
 
             if (user == null)
             {
-                throw new Exception("MSG09"); // Incorrect email or password
+                throw new Exception("Incorrect email or password."); // Incorrect email or password
             }
 
             if (user.IsSuspended)
             {
-                throw new Exception("MSG10"); // Suspended/Locked
+                throw new Exception("This account has been temporarily locked. Please try again in 30 minutes."); // Suspended/Locked
             }
 
             if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
             {
-                throw new Exception("MSG10"); // Account temporarily locked
+                throw new Exception("This account has been temporarily locked. Please try again in 30 minutes."); // Account temporarily locked
             }
 
             var isPasswordValid = _passwordHasher.VerifyPassword(request.Password, user.PasswordHash);
@@ -49,11 +49,11 @@ namespace TutorMatchingPlatform.Application.Auth.Queries.Login
                 {
                     user.LockoutEnd = DateTime.UtcNow.AddMinutes(30);
                     await _context.SaveChangesAsync(cancellationToken);
-                    throw new Exception("MSG10"); // Account temporarily locked due to failed attempts
+                    throw new Exception("This account has been temporarily locked. Please try again in 30 minutes."); // Account temporarily locked due to failed attempts
                 }
                 
                 await _context.SaveChangesAsync(cancellationToken);
-                throw new Exception("MSG09"); // Incorrect email or password
+                throw new Exception("Incorrect email or password."); // Incorrect email or password
             }
 
             // Successful login, reset lockout

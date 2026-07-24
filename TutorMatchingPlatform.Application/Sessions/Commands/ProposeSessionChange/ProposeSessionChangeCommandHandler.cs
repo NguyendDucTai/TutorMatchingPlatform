@@ -56,7 +56,7 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.ProposeSessionChan
 
                 if (hasConflict)
                 {
-                    return new ProposeSessionChangeResult { Success = false, Message = "MSG04" }; // Time slot already taken (conflict)
+                    return new ProposeSessionChangeResult { Success = false, Message = "The selected time slot is already booked. Please choose another time slot." }; // Time slot already taken (conflict)
                 }
             }
 

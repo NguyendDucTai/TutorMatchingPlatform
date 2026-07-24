@@ -35,7 +35,7 @@ namespace TutorMatchingPlatform.Application.Feedbacks.Commands.RateSession
             if (session.Status != SessionStatus.Completed)
             {
                 // Must be Completed to rate
-                return new RateSessionResult { Success = false, Message = "MSG08" };
+                return new RateSessionResult { Success = false, Message = "You can only submit a rating after the session has been completed." };
             }
 
             // 3. Determine roles and Receiver
