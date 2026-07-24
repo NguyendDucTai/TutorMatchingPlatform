@@ -30,7 +30,7 @@ namespace TutorMatchingPlatform.Application.Auth.Commands.Register
             var existingUser = await _context.Users.SingleOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
             if (existingUser != null)
             {
-                throw new Exception("MSG13"); // Email already registered
+                throw new Exception("This email is already registered. Please log in or use a different email."); // Email already registered
             }
 
             // 2. Hash password

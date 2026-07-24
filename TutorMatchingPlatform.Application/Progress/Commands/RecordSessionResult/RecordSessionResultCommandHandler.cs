@@ -43,7 +43,7 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
             bool hasScore = request.Score.HasValue;
             bool hasGoal = request.MilestoneId.HasValue;
             if (!hasScore && !hasGoal)
-                return new RecordSessionResultResult { Success = false, Message = "MSG02" };
+                return new RecordSessionResultResult { Success = false, Message = "The score and goal fields are required." };
 
             // 5. Update session score and tutor comment
             if (request.Score.HasValue)
@@ -102,7 +102,7 @@ namespace TutorMatchingPlatform.Application.Progress.Commands.RecordSessionResul
             return new RecordSessionResultResult
             {
                 Success = true,
-                Message = "Session result recorded successfully. (MSG03)",
+                Message = "Session result recorded successfully.",
                 GoalAutoCompleted = goalAutoCompleted
             };
         }

@@ -41,10 +41,6 @@ namespace TutorMatchingPlatform.API.Controllers
 
             if (!result.Success)
             {
-                if (result.Message == "MSG08")
-                {
-                    return BadRequest(new { Message = "You can only submit a rating after the session has been completed. (MSG08)" });
-                }
                 return BadRequest(new { Message = result.Message });
             }
 

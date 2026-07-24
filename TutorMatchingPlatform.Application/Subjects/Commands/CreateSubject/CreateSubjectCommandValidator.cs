@@ -11,7 +11,7 @@ namespace TutorMatchingPlatform.Application.Subjects.Commands.CreateSubject
                 .MaximumLength(50).WithMessage("Subject Name must not exceed 50 characters.");
 
             RuleFor(v => v.Description)
-                .MaximumLength(200).WithMessage("Description must not exceed 200 characters.");
+                .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
         }
     }
 }

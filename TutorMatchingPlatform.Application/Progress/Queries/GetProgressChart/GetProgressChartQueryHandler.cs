@@ -52,7 +52,7 @@ namespace TutorMatchingPlatform.Application.Progress.Queries.GetProgressChart
                 return new ProgressChartResult
                 {
                     HasData = false,
-                    Message = "MSG01"
+                    Message = "No matching results found."
                 };
             }
 

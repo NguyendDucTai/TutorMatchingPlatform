@@ -26,7 +26,11 @@ namespace TutorMatchingPlatform.API
                     };
                 });
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+                });
             services.AddOpenApi();
             services.AddSwaggerGen(c =>
             {
@@ -39,6 +43,7 @@ namespace TutorMatchingPlatform.API
                     BearerFormat = "JWT",
                     Scheme = "bearer"
                 });
+                
                 c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
                 {
                     {

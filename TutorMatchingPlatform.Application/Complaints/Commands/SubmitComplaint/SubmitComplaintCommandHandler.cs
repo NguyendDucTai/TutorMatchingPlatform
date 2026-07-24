@@ -52,7 +52,7 @@ namespace TutorMatchingPlatform.Application.Complaints.Commands.SubmitComplaint
             return new SubmitComplaintResult
             {
                 Success = true,
-                Message = "Complaint submitted successfully.",
+                Message = "Your complaint has been recorded.",
                 ComplaintId = complaint.Id
             };
         }

@@ -80,7 +80,7 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
 
             if (hasConflict)
             {
-                return new BookSessionResult { Success = false, Message = "MSG04" };
+                return new BookSessionResult { Success = false, Message = "The selected time slot is already booked. Please choose another time slot." };
             }
 
             // 4. Create Session
@@ -120,13 +120,13 @@ namespace TutorMatchingPlatform.Application.Sessions.Commands.BookSession
             await _context.SaveChangesAsync(cancellationToken);
 
             // 5. Return success (MSG03)
-            await _emailService.SendEmailAsync(studentUser.Email, "Booking Confirmed", $"Your session for subject {request.SubjectId} is confirmed. MSG03");
-            await _emailService.SendEmailAsync(tutorUser.Email, "New Booking", $"You have a new booking from {studentUser.FullName}. MSG03");
+            await _emailService.SendEmailAsync(studentUser.Email, "Booking Confirmed", $"Booking successful. A confirmation email has been sent to {studentUser.Email}.");
+            await _emailService.SendEmailAsync(tutorUser.Email, "New Booking", $"Booking successful. A confirmation email has been sent to {tutorUser.Email}.");
 
             return new BookSessionResult
             {
                 Success = true,
-                Message = "MSG03",
+                Message = "Booking successful. A confirmation email has been sent to " + studentUser.Email,
                 SessionId = session.Id,
                 MeetingLink = meetingLink
             };

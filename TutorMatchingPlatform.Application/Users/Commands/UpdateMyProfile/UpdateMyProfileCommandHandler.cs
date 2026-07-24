@@ -42,24 +42,6 @@ namespace TutorMatchingPlatform.Application.Users.Commands.UpdateMyProfile
                 user.AvatarUrl = avatarUrl;
             }
 
-            if (user.Role == UserRole.Tutor && user.TutorProfile != null)
-            {
-                if (request.Bio != null)
-                {
-                    user.TutorProfile.Bio = request.Bio;
-                }
-            }
-            else if (user.Role == UserRole.Student && user.StudentProfile != null)
-            {
-                if (request.StudyGoals != null)
-                {
-                    user.StudentProfile.StudyGoals = request.StudyGoals;
-                }
-                if (request.TargetSubjectsJson != null)
-                {
-                    user.StudentProfile.TargetSubjectsJson = request.TargetSubjectsJson;
-                }
-            }
 
             await _context.SaveChangesAsync(cancellationToken);
 
