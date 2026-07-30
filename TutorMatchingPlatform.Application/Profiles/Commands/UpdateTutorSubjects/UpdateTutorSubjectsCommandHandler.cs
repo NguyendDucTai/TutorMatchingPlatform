@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using TutorMatchingPlatform.Application.Interfaces;
@@ -28,12 +29,31 @@ namespace TutorMatchingPlatform.Application.Profiles.Commands.UpdateTutorSubject
                 return false;
             }
 
-            user.TutorProfile.SubjectsJson = JsonSerializer.Serialize(request.Subjects);
-
-            // Setting back to Pending if approved so Admin can review new changes
-            if (user.TutorProfile.Status == ProfileStatus.Approved)
+            var serializerOptions = new JsonSerializerOptions
             {
-                user.TutorProfile.Status = ProfileStatus.Pending;
+                PropertyNameCaseInsensitive = true
+            };
+            var existingSubjects = JsonSerializer.Deserialize<List<SubjectRateDto>>(
+                user.TutorProfile.SubjectsJson ?? "[]",
+                serializerOptions) ?? new List<SubjectRateDto>();
+
+            var subjectsChanged = !existingSubjects
+                .OrderBy(subject => subject.SubjectId)
+                .Select(subject => (subject.SubjectId, subject.Rate))
+                .SequenceEqual(
+                    request.Subjects
+                        .OrderBy(subject => subject.SubjectId)
+                        .Select(subject => (subject.SubjectId, subject.Rate)));
+
+            if (subjectsChanged)
+            {
+                user.TutorProfile.SubjectsJson = JsonSerializer.Serialize(request.Subjects);
+
+                // Only changed teaching subjects/rates need another admin review.
+                if (user.TutorProfile.Status == ProfileStatus.Approved)
+                {
+                    user.TutorProfile.Status = ProfileStatus.Pending;
+                }
             }
 
             await _context.SaveChangesAsync(cancellationToken);

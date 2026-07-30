@@ -37,8 +37,8 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorP
             }
 
             // Check if required info is missing (MSG02 equivalent blocking)
-            if (string.IsNullOrWhiteSpace(profile.TutorProfile.SubjectsJson) || 
-                string.IsNullOrWhiteSpace(profile.AvatarUrl))
+            if (string.IsNullOrWhiteSpace(profile.TutorProfile.SubjectsJson) ||
+                string.IsNullOrWhiteSpace(profile.TutorProfile.Qualifications))
             {
                 throw new Exception("MSG02: Missing required information. Cannot approve.");
             }

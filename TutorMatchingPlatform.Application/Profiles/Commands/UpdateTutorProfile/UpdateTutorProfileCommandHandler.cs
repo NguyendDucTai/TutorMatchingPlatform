@@ -27,18 +27,23 @@ namespace TutorMatchingPlatform.Application.Profiles.Commands.UpdateTutorProfile
                 return false;
             }
 
-            if (request.Bio != null)
+            var hasReviewableChanges = false;
+
+            if (request.Bio != null && request.Bio != user.TutorProfile.Bio)
             {
                 user.TutorProfile.Bio = request.Bio;
+                hasReviewableChanges = true;
             }
 
-            if (request.QualificationsText != null)
+            if (request.QualificationsText != null &&
+                request.QualificationsText != user.TutorProfile.Qualifications)
             {
                 user.TutorProfile.Qualifications = request.QualificationsText;
+                hasReviewableChanges = true;
             }
 
-            // Setting back to Pending if approved so Admin can review new changes
-            if (user.TutorProfile.Status == ProfileStatus.Approved)
+            // Only changed reviewable content needs another admin review.
+            if (hasReviewableChanges && user.TutorProfile.Status == ProfileStatus.Approved)
             {
                 user.TutorProfile.Status = ProfileStatus.Pending;
             }
