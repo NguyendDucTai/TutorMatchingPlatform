@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorProfile;
 using TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorProfile;
 using TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProfiles;
@@ -12,6 +13,7 @@ using TutorMatchingPlatform.Application.Credits.Queries.GetPendingCreditRequests
 using TutorMatchingPlatform.Application.Credits.Commands.ApproveCreditRequest;
 using TutorMatchingPlatform.Application.Credits.Commands.RejectCreditRequest;
 using TutorMatchingPlatform.Domain.Enums;
+using TutorMatchingPlatform.Infrastructure.Data;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
@@ -21,10 +23,12 @@ namespace TutorMatchingPlatform.API.Controllers
     public class AdminController : ControllerBase
     {
         private readonly ISender _sender;
+        private readonly TutorMatchingPlatformDbContext _context;
 
-        public AdminController(ISender sender)
+        public AdminController(ISender sender, TutorMatchingPlatformDbContext context)
         {
             _sender = sender;
+            _context = context;
         }
 
         [HttpGet("dashboard")]
@@ -57,21 +61,35 @@ namespace TutorMatchingPlatform.API.Controllers
         [HttpPost("tutor-profiles/{id}/approve")]
         public async Task<IActionResult> ApproveProfile(int id)
         {
-            var command = new ApproveTutorProfileCommand { TutorProfileId = id };
-            var result = await _sender.Send(command);
-            return Ok(new { Success = result });
+            try
+            {
+                var command = new ApproveTutorProfileCommand { TutorProfileId = id };
+                var result = await _sender.Send(command);
+                return Ok(new { Success = result });
+            }
+            catch (Exception exception)
+            {
+                return BadRequest(new { Message = exception.Message });
+            }
         }
 
         [HttpPost("tutor-profiles/{id}/reject")]
         public async Task<IActionResult> RejectProfile(int id, [FromBody] RejectProfileRequest request)
         {
-            var command = new RejectTutorProfileCommand 
-            { 
-                TutorProfileId = id, 
-                Reason = request.Reason 
-            };
-            var result = await _sender.Send(command);
-            return Ok(new { Success = result });
+            try
+            {
+                var command = new RejectTutorProfileCommand
+                {
+                    TutorProfileId = id,
+                    Reason = request.Reason
+                };
+                var result = await _sender.Send(command);
+                return Ok(new { Success = result });
+            }
+            catch (Exception exception)
+            {
+                return BadRequest(new { Message = exception.Message });
+            }
         }
 
         // UC-14: Review and Resolve Complaint
@@ -141,6 +159,63 @@ namespace TutorMatchingPlatform.API.Controllers
             if (!result.Success) return BadRequest(new { Message = result.Message });
             return Ok(result);
         }
+
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _context.Users
+                .AsNoTracking()
+                .Include(user => user.TutorProfile)
+                .OrderByDescending(user => user.CreatedAt)
+                .Select(user => new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    user.Role,
+                    user.AvatarUrl,
+                    user.IsSuspended,
+                    user.CreditBalance,
+                    user.CreatedAt,
+                    TutorProfile = user.TutorProfile == null ? null : new
+                    {
+                        user.TutorProfile.Status,
+                        user.TutorProfile.ReputationScore
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
+        [HttpPost("users/{id}/suspend")]
+        public async Task<IActionResult> ToggleUserSuspension(int id, [FromBody] UserModerationRequest? request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { Message = "User not found." });
+            if (user.Role == UserRole.Administrator)
+                return BadRequest(new { Message = "Administrator accounts cannot be suspended here." });
+
+            user.IsSuspended = !user.IsSuspended;
+            await _context.SaveChangesAsync();
+            return Ok(new { user.Id, user.IsSuspended, request?.Reason });
+        }
+
+        [HttpPost("users/{id}/kick")]
+        public async Task<IActionResult> KickUser(int id, [FromBody] UserModerationRequest? request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { Message = "User not found." });
+            if (user.Role == UserRole.Administrator)
+                return BadRequest(new { Message = "Administrator accounts cannot be deactivated here." });
+
+            // Keep relational/history data intact while permanently preventing login.
+            user.IsSuspended = true;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _context.SaveChangesAsync();
+            return Ok(new { user.Id, user.IsSuspended, request?.Reason });
+        }
     }
 
     public class RejectCreditRequestDto
@@ -158,5 +233,10 @@ namespace TutorMatchingPlatform.API.Controllers
         public ComplaintAction Action { get; set; }
         public string? Reason { get; set; }
         public int? SuspendDays { get; set; }
+    }
+
+    public class UserModerationRequest
+    {
+        public string? Reason { get; set; }
     }
 }

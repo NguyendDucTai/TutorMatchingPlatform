@@ -7,7 +7,7 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorPr
         public RejectTutorProfileCommandValidator()
         {
             RuleFor(v => v.TutorProfileId)
-                .NotEmpty().WithMessage("TutorProfileId is required.");
+                .GreaterThanOrEqualTo(0).WithMessage("TutorProfileId is invalid.");
 
             RuleFor(v => v.Reason)
                 .NotEmpty().WithMessage("Reason is required to reject a profile.")

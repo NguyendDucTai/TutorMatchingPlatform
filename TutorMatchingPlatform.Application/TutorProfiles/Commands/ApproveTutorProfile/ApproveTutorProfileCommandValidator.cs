@@ -7,7 +7,7 @@ namespace TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorP
         public ApproveTutorProfileCommandValidator()
         {
             RuleFor(v => v.TutorProfileId)
-                .NotEmpty().WithMessage("TutorProfileId is required.");
+                .GreaterThanOrEqualTo(0).WithMessage("TutorProfileId is invalid.");
         }
     }
 }
