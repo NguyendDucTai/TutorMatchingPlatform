@@ -24,11 +24,16 @@ namespace TutorMatchingPlatform.API.Controllers
     {
         private readonly ISender _sender;
         private readonly TutorMatchingPlatformDbContext _context;
+        private readonly TutorMatchingPlatform.Application.Interfaces.INotificationSender _notificationSender;
 
-        public AdminController(ISender sender, TutorMatchingPlatformDbContext context)
+        public AdminController(
+            ISender sender,
+            TutorMatchingPlatformDbContext context,
+            TutorMatchingPlatform.Application.Interfaces.INotificationSender notificationSender)
         {
             _sender = sender;
             _context = context;
+            _notificationSender = notificationSender;
         }
 
         [HttpGet("dashboard")]
@@ -215,6 +220,45 @@ namespace TutorMatchingPlatform.API.Controllers
             user.RefreshTokenExpiryTime = null;
             await _context.SaveChangesAsync();
             return Ok(new { user.Id, user.IsSuspended, request?.Reason });
+        }
+
+        [HttpPut("users/{id}/note")]
+        public async Task<IActionResult> UpdateUserNote(int id, [FromBody] UserModerationRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(TutorMatchingPlatform.API.Common.ApiResponse<object>.Error(404, "User not found."));
+
+            if (!string.IsNullOrWhiteSpace(request.Reason))
+            {
+                var title = "[WARNING] Cảnh cáo từ Admin!";
+                var message = request.Reason;
+
+                var notification = new TutorMatchingPlatform.Domain.Entities.Notification
+                {
+                    ReceiverId = id,
+                    Title = title,
+                    Message = message,
+                    IsWarning = true,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _context.Notifications.AddAsync(notification);
+                await _context.SaveChangesAsync();
+
+                await _notificationSender.SendNotificationAsync(id, new
+                {
+                    notification.Id,
+                    UserId = notification.ReceiverId,
+                    notification.Title,
+                    notification.Message,
+                    Type = "Warning",
+                    notification.IsRead,
+                    notification.CreatedAt
+                });
+            }
+
+            return Ok(TutorMatchingPlatform.API.Common.ApiResponse<bool>.Ok(true));
         }
     }
 
