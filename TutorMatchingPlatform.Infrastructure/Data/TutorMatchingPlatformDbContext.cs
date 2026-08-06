@@ -27,6 +27,7 @@ namespace TutorMatchingPlatform.Infrastructure.Data
         public DbSet<Complaint> Complaints { get; set; } = null!;
         public DbSet<CreditRequest> CreditRequests { get; set; } = null!;
         public DbSet<CreditTransaction> CreditTransactions { get; set; } = null!;
+        public DbSet<Availability> Availabilities { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

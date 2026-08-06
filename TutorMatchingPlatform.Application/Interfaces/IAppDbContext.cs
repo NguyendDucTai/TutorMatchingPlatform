@@ -19,6 +19,7 @@ namespace TutorMatchingPlatform.Application.Interfaces
         DbSet<Complaint> Complaints { get; }
         DbSet<CreditRequest> CreditRequests { get; }
         DbSet<CreditTransaction> CreditTransactions { get; }
+        DbSet<Availability> Availabilities { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
