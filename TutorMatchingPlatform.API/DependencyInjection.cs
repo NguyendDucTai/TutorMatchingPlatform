@@ -10,6 +10,9 @@ namespace TutorMatchingPlatform.API
     {
         public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddExceptionHandler<Common.GlobalExceptionHandler>();
+            services.AddProblemDetails();
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {

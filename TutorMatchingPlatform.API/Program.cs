@@ -6,6 +6,8 @@ using TutorMatchingPlatform.Application;
 using TutorMatchingPlatform.Infrastructure;
 using TutorMatchingPlatform.Infrastructure.Data;
 using TutorMatchingPlatform.API;
+using VNPAY.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -17,6 +19,17 @@ builder.Services.AddDbContext<TutorMatchingPlatformDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddApiServices(builder.Configuration);
+
+builder.Services.AddVnpayClient(options =>
+{
+    var section = builder.Configuration.GetSection("Vnpay");
+    options.TmnCode = section["TmnCode"] ?? "A5OLM2K8";
+    options.HashSecret = section["HashSecret"] ?? "XTCVNPVOBWNZMKKQGPGQZMLPGRDYOWOW";
+    options.BaseUrl = section["BaseUrl"] ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    options.CallbackUrl = section["CallbackUrl"] ?? "http://localhost:5000/api/Credits/vnpay-callback";
+    options.Version = "2.1.0";
+    options.OrderType = "other";
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -85,6 +98,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseExceptionHandler();
 
 app.UseCors("Frontend");
 
