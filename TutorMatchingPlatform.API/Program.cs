@@ -30,13 +30,17 @@ builder.Services.AddVnpayClient(options =>
     options.Version = "2.1.0";
     options.OrderType = "other";
 });
+builder.Services.AddSignalR();
+builder.Services.AddScoped<TutorMatchingPlatform.Application.Interfaces.INotificationSender, TutorMatchingPlatform.Infrastructure.Services.SignalRNotificationSender<TutorMatchingPlatform.API.Hubs.NotificationHub>>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
         policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -107,5 +111,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<TutorMatchingPlatform.API.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();
