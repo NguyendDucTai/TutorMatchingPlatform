@@ -1,16 +1,17 @@
-using System.Collections.Generic;
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using TutorMatchingPlatform.Application.Interfaces;
-using TutorMatchingPlatform.Application.Users.Queries.GetMyProfile;
-using TutorMatchingPlatform.Application.Users.Commands.UpdateMyProfile;
-using TutorMatchingPlatform.Application.Profiles.Commands.UpdateStudentProfile;
-using TutorMatchingPlatform.Application.Profiles.Commands.UpdateTutorProfile;
-using TutorMatchingPlatform.Application.Profiles.Commands.UpdateTutorSubjects;
+using TutorMatchingPlatform.API.Common;
+using TutorMatchingPlatform.Application.Contracts.Profiles;
+using TutorMatchingPlatform.Application.Features.Profiles.Commands.UpdateStudentProfile;
+using TutorMatchingPlatform.Application.Features.Profiles.Commands.UpdateTutorProfile;
+using TutorMatchingPlatform.Application.Features.Profiles.Commands.UpdateTutorSubjects;
+using TutorMatchingPlatform.Application.Features.Profiles.Commands.UpdateUserProfile;
+using TutorMatchingPlatform.Application.Features.Profiles.Queries.GetMyProfile;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
@@ -19,157 +20,120 @@ namespace TutorMatchingPlatform.API.Controllers
     [Authorize]
     public class ProfilesController : ControllerBase
     {
-        private readonly ISender _sender;
+        private readonly IMediator _mediator;
 
-        public ProfilesController(ISender sender)
+        public ProfilesController(IMediator mediator)
         {
-            _sender = sender;
+            _mediator = mediator;
+        }
+
+        private Guid? GetUserIdNullable()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                               ?? User.FindFirstValue("nameid")
+                               ?? User.FindFirstValue("sub")
+                               ?? User.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier");
+
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            {
+                return null;
+            }
+            return userId;
+        }
+
+        private Guid GetUserId()
+        {
+            var userId = GetUserIdNullable();
+            if (!userId.HasValue)
+            {
+                throw new UnauthorizedAccessException("Invalid user token.");
+            }
+            return userId.Value;
+        }
+
+        private int GetUserRole()
+        {
+            var roleString = User.FindFirstValue(ClaimTypes.Role)
+                             ?? User.FindFirstValue("role")
+                             ?? User.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+
+            if (string.IsNullOrEmpty(roleString)) return -1;
+
+            if (Enum.TryParse<TutorMatchingPlatform.Domain.Enums.UserRole>(roleString, true, out var role))
+            {
+                return (int)role;
+            }
+            if (int.TryParse(roleString, out var roleInt))
+            {
+                return roleInt;
+            }
+            return -1;
         }
 
         [HttpGet("me")]
+        [ProducesResponseType(typeof(ApiResponse<MyProfileResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetMyProfile()
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdString, out int userId))
+            var userId = GetUserIdNullable();
+            if (!userId.HasValue)
             {
-                return Unauthorized();
+                return Unauthorized(ApiResponse<MyProfileResponse>.Error(401, "Phiên đăng nhập hết hạn hoặc chưa xác thực."));
             }
 
-            var result = await _sender.Send(new GetMyProfileQuery { UserId = userId });
-            
-            if (result == null)
-            {
-                return NotFound();
-            }
-            
-            return Ok(result);
+            var query = new GetMyProfileQuery { UserId = userId.Value };
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<MyProfileResponse>.Ok(response));
         }
 
         [HttpPut("me")]
-        public async Task<IActionResult> UpdateMyProfile(
-            [FromForm] string fullName,
-            IFormFile? avatarFile)
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileCommand command)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdString, out int userId))
-            {
-                return Unauthorized();
-            }
-
-            var command = new UpdateMyProfileCommand
-            {
-                UserId = userId,
-                FullName = fullName
-            };
-
-            if (avatarFile != null)
-            {
-                command.AvatarFile = new FileUploadDto
-                {
-                    Content = avatarFile.OpenReadStream(),
-                    FileName = avatarFile.FileName,
-                    ContentType = avatarFile.ContentType
-                };
-            }
-
-            var result = await _sender.Send(command);
-
-            if (!result.Success)
-            {
-                return BadRequest(new { Message = result.Message });
-            }
-
-            return Ok(result);
-        }
-
-        [HttpPut("student")]
-        [Authorize(Roles = "Student")]
-        public async Task<IActionResult> UpdateStudentProfile([FromBody] UpdateStudentProfileCommand command)
-        {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdString, out int userId))
-            {
-                return Unauthorized();
-            }
-
-            command.UserId = userId;
-            var result = await _sender.Send(command);
-
-            if (!result)
-            {
-                return BadRequest(new { Message = "Failed to update student profile." });
-            }
-
-            return Ok(new { Success = true });
+            command.UserId = GetUserId();
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
 
         [HttpPut("tutor")]
-        [Authorize(Roles = "Tutor")]
-        public async Task<IActionResult> UpdateTutorProfile(
-            [FromForm] string? bio,
-            [FromForm] string? qualificationsText,
-            [FromForm] IFormFileCollection qualificationFiles)
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateTutorProfile([FromBody] UpdateTutorProfileCommand command)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdString, out int userId))
+            if (GetUserRole() != 1) // 1 = Tutor
             {
-                return Unauthorized();
+                return Forbid();
             }
 
-            var command = new UpdateTutorProfileCommand
-            {
-                UserId = userId,
-                Bio = bio,
-                QualificationsText = qualificationsText
-            };
+            command.UserId = GetUserId();
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
+        }
 
-            if (qualificationFiles != null && qualificationFiles.Count > 0)
+        [HttpPut("student")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateStudentProfile([FromBody] UpdateStudentProfileCommand command)
+        {
+            if (GetUserRole() != 2) // 2 = Student
             {
-                foreach (var file in qualificationFiles)
-                {
-                    command.QualificationFiles.Add(new FileUploadDto
-                    {
-                        Content = file.OpenReadStream(),
-                        FileName = file.FileName,
-                        ContentType = file.ContentType
-                    });
-                }
+                return Forbid();
             }
 
-            var result = await _sender.Send(command);
-
-            if (!result)
-            {
-                return BadRequest(new { Message = "Failed to update tutor profile." });
-            }
-
-            return Ok(new { Success = true });
+            command.UserId = GetUserId();
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
 
         [HttpPost("tutor/subjects")]
-        [Authorize(Roles = "Tutor")]
-        public async Task<IActionResult> UpdateTutorSubjects([FromBody] List<SubjectRateDto> subjects)
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateTutorSubjects([FromBody] UpdateTutorSubjectsCommand command)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdString, out int userId))
+            if (GetUserRole() != 1) // 1 = Tutor
             {
-                return Unauthorized();
+                return Forbid();
             }
 
-            var command = new UpdateTutorSubjectsCommand
-            {
-                UserId = userId,
-                Subjects = subjects
-            };
-
-            var result = await _sender.Send(command);
-
-            if (!result)
-            {
-                return BadRequest(new { Message = "Failed to update tutor subjects." });
-            }
-
-            return Ok(new { Success = true });
+            command.UserId = GetUserId();
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
     }
 }

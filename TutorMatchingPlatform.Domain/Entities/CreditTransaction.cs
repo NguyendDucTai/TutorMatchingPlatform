@@ -1,3 +1,4 @@
+using System;
 using TutorMatchingPlatform.Domain.Common;
 using TutorMatchingPlatform.Domain.Enums;
 
@@ -5,11 +6,25 @@ namespace TutorMatchingPlatform.Domain.Entities
 {
     public class CreditTransaction : BaseEntity
     {
-        public int UserId { get; set; }
-        public User User { get; set; } = null!;
-        public decimal Amount { get; set; }
-        public CreditTransactionType Type { get; set; }
-        public string? ReferenceId { get; set; }
-        public string? Description { get; set; }
+        public Guid UserId { get; private set; }
+        public decimal Amount { get; private set; }
+        public CreditTransactionType Type { get; private set; }
+        public string Description { get; private set; }
+        public Guid? BookingId { get; private set; }
+        public decimal BalanceAfter { get; private set; }
+
+        private CreditTransaction() { } // EF Core
+
+        public CreditTransaction(Guid userId, decimal amount, CreditTransactionType type, string description, decimal balanceAfter, Guid? bookingId = null)
+        {
+            if (string.IsNullOrWhiteSpace(description)) throw new ArgumentException("Description cannot be empty.");
+
+            UserId = userId;
+            Amount = amount;
+            Type = type;
+            Description = description;
+            BalanceAfter = balanceAfter;
+            BookingId = bookingId;
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace TutorMatchingPlatform.API.Common
         {
             return new ApiResponse<T> { Success = true, StatusCode = 200, Data = data };
         }
-
+        
         public static ApiResponse<T> Created(T data)
         {
             return new ApiResponse<T> { Success = true, StatusCode = 201, Data = data };

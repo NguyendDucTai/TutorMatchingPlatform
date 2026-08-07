@@ -1,286 +1,322 @@
+using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TutorMatchingPlatform.Application.TutorProfiles.Commands.ApproveTutorProfile;
-using TutorMatchingPlatform.Application.TutorProfiles.Commands.RejectTutorProfile;
-using TutorMatchingPlatform.Application.TutorProfiles.Queries.GetPendingProfiles;
-using TutorMatchingPlatform.Application.Complaints.Queries.GetPendingComplaints;
-using TutorMatchingPlatform.Application.Complaints.Commands.ResolveComplaint;
-using TutorMatchingPlatform.Application.Credits.Queries.GetPendingCreditRequests;
-using TutorMatchingPlatform.Application.Credits.Commands.ApproveCreditRequest;
-using TutorMatchingPlatform.Application.Credits.Commands.RejectCreditRequest;
-using TutorMatchingPlatform.Domain.Enums;
-using TutorMatchingPlatform.Infrastructure.Data;
+using TutorMatchingPlatform.API.Common;
+using TutorMatchingPlatform.Application.Contracts.Admin;
+using TutorMatchingPlatform.Application.Features.Admin.Commands.RejectTutor;
+using TutorMatchingPlatform.Application.Features.Admin.Queries.GetAdminDashboard;
+using TutorMatchingPlatform.Application.Features.Admin.Queries.GetPendingTutors;
+using TutorMatchingPlatform.Application.Features.Tutors.Commands.ApproveTutor;
+using TutorMatchingPlatform.Domain.Common;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
     [ApiController]
-    [Route("api/admin")]
-    [Authorize(Roles = "Administrator")]
+    [Route("api/[controller]")]
+    [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
-        private readonly ISender _sender;
-        private readonly TutorMatchingPlatformDbContext _context;
-        private readonly TutorMatchingPlatform.Application.Interfaces.INotificationSender _notificationSender;
+        private readonly IMediator _mediator;
+        private readonly TutorMatchingPlatform.Infrastructure.Persistence.ApplicationDbContext _dbContext;
 
-        public AdminController(
-            ISender sender,
-            TutorMatchingPlatformDbContext context,
-            TutorMatchingPlatform.Application.Interfaces.INotificationSender notificationSender)
+        public AdminController(IMediator mediator, TutorMatchingPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext)
         {
-            _sender = sender;
-            _context = context;
-            _notificationSender = notificationSender;
+            _mediator = mediator;
+            _dbContext = dbContext;
+        }
+
+        private Guid GetUserId()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            {
+                throw new UnauthorizedAccessException("Invalid user token.");
+            }
+            return userId;
         }
 
         [HttpGet("dashboard")]
-        public async Task<IActionResult> GetDashboard([FromQuery] string timeRange = "30days", [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+        [ProducesResponseType(typeof(ApiResponse<AdminDashboardDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetDashboard()
         {
-            var query = new TutorMatchingPlatform.Application.Admin.Queries.GetDashboardStatistics.GetDashboardStatisticsQuery
+            var query = new GetAdminDashboardQuery();
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<AdminDashboardDto>.Ok(response));
+        }
+
+        [HttpGet("pending-tutors")]
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<PendingTutorDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPendingTutors([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var query = new GetPendingTutorsQuery
             {
-                TimeRange = timeRange,
-                CustomStartDate = startDate,
-                CustomEndDate = endDate
+                PageNumber = pageNumber <= 0 ? 1 : pageNumber,
+                PageSize = pageSize <= 0 ? 10 : pageSize
             };
-            var result = await _sender.Send(query);
-            return Ok(result);
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<PendingTutorDto>>.Ok(response));
         }
 
-        [HttpGet("tutors")]
-        public async Task<IActionResult> GetTutors([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        [HttpPut("tutors/{id}/approve")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ApproveTutor(Guid id)
         {
-            var result = await _sender.Send(new TutorMatchingPlatform.Application.TutorProfiles.Queries.GetAllTutors.GetAllTutorsQuery { PageNumber = pageNumber, PageSize = pageSize });
-            return Ok(result);
-        }
-
-        [HttpGet("tutor-profiles/pending")]
-        public async Task<IActionResult> GetPendingProfiles()
-        {
-            var result = await _sender.Send(new GetPendingProfilesQuery());
-            return Ok(result);
-        }
-
-        [HttpPost("tutor-profiles/{id}/approve")]
-        public async Task<IActionResult> ApproveProfile(int id)
-        {
+            Guid adminId;
             try
             {
-                var command = new ApproveTutorProfileCommand { TutorProfileId = id };
-                var result = await _sender.Send(command);
-                return Ok(new { Success = result });
+                adminId = GetUserId();
             }
-            catch (Exception exception)
+            catch (UnauthorizedAccessException)
             {
-                return BadRequest(new { Message = exception.Message });
+                return Unauthorized(ApiResponse<object>.Error(401, "Unauthorized admin access."));
             }
-        }
 
-        [HttpPost("tutor-profiles/{id}/reject")]
-        public async Task<IActionResult> RejectProfile(int id, [FromBody] RejectProfileRequest request)
-        {
-            try
+            var command = new ApproveTutorCommand
             {
-                var command = new RejectTutorProfileCommand
-                {
-                    TutorProfileId = id,
-                    Reason = request.Reason
-                };
-                var result = await _sender.Send(command);
-                return Ok(new { Success = result });
-            }
-            catch (Exception exception)
-            {
-                return BadRequest(new { Message = exception.Message });
-            }
-        }
-
-        // UC-14: Review and Resolve Complaint
-        [HttpGet("complaints/pending")]
-        public async Task<IActionResult> GetPendingComplaints()
-        {
-            var query = new GetPendingComplaintsQuery();
-            var complaints = await _sender.Send(query);
-            return Ok(complaints);
-        }
-
-        [HttpPost("complaints/{id}/resolve")]
-        public async Task<IActionResult> ResolveComplaint(int id, [FromBody] ResolveComplaintRequestDto request)
-        {
-            var command = new ResolveComplaintCommand
-            {
-                ComplaintId = id,
-                Action = request.Action,
-                Reason = request.Reason,
-                SuspendDays = request.SuspendDays
+                TutorUserId = id,
+                AdminUserId = adminId
             };
 
-            var result = await _sender.Send(command);
-
-            if (!result.Success)
-            {
-                return BadRequest(new { Message = result.Message });
-            }
-
-            return Ok(result);
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
-        [HttpGet("credits/pending")]
-        public async Task<IActionResult> GetPendingCreditRequests()
+
+        [HttpPut("tutors/{id}/reject")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> RejectTutor(Guid id)
         {
-            var query = new GetPendingCreditRequestsQuery();
-            var requests = await _sender.Send(query);
-            return Ok(requests);
+            var command = new RejectTutorCommand(id);
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
 
-        [HttpPost("credits/{id}/approve")]
-        public async Task<IActionResult> ApproveCreditRequest(int id)
-        {
-            var adminIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(adminIdString, out int adminId)) return Unauthorized();
-
-            var command = new ApproveCreditRequestCommand { CreditRequestId = id, AdminUserId = adminId };
-            var result = await _sender.Send(command);
-
-            if (!result.Success) return BadRequest(new { Message = result.Message });
-            return Ok(result);
-        }
-
-        [HttpPost("credits/{id}/reject")]
-        public async Task<IActionResult> RejectCreditRequest(int id, [FromBody] RejectCreditRequestDto request)
-        {
-            var adminIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(adminIdString, out int adminId)) return Unauthorized();
-
-            var command = new RejectCreditRequestCommand 
-            { 
-                CreditRequestId = id, 
-                AdminUserId = adminId,
-                Reason = request.Reason
-            };
-            var result = await _sender.Send(command);
-
-            if (!result.Success) return BadRequest(new { Message = result.Message });
-            return Ok(result);
-        }
+        // ── User Management ──────────────────────────────────────────────
 
         [HttpGet("users")]
-        public async Task<IActionResult> GetUsers()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllUsers(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] int? role = null,
+            [FromQuery] bool? isActive = null)
         {
-            var users = await _context.Users
-                .AsNoTracking()
-                .Include(user => user.TutorProfile)
-                .OrderByDescending(user => user.CreatedAt)
-                .Select(user => new
-                {
-                    user.Id,
-                    user.FullName,
-                    user.Email,
-                    user.Role,
-                    user.AvatarUrl,
-                    user.IsSuspended,
-                    user.CreditBalance,
-                    user.CreatedAt,
-                    TutorProfile = user.TutorProfile == null ? null : new
-                    {
-                        user.TutorProfile.Status,
-                        user.TutorProfile.ReputationScore
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(users);
+            var query = new Application.Features.Admin.Queries.GetAllUsers.GetAllUsersQuery
+            {
+                PageNumber = pageNumber < 1 ? 1 : pageNumber,
+                PageSize = pageSize < 1 ? 20 : pageSize,
+                Search = search,
+                Role = role,
+                IsActive = isActive
+            };
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<Domain.Common.PagedResult<Domain.Common.AdminUserResult>>.Ok(response));
         }
 
-        [HttpPost("users/{id}/suspend")]
-        public async Task<IActionResult> ToggleUserSuspension(int id, [FromBody] UserModerationRequest? request)
+        [HttpPut("users/{id}/lock")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> LockUser(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound(new { Message = "User not found." });
-            if (user.Role == UserRole.Administrator)
-                return BadRequest(new { Message = "Administrator accounts cannot be suspended here." });
-
-            user.IsSuspended = !user.IsSuspended;
-            await _context.SaveChangesAsync();
-            return Ok(new { user.Id, user.IsSuspended, request?.Reason });
+            var command = new Application.Features.Admin.Commands.LockUser.LockUserCommand { UserId = id };
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
 
-        [HttpPost("users/{id}/kick")]
-        public async Task<IActionResult> KickUser(int id, [FromBody] UserModerationRequest? request)
+        [HttpPut("users/{id}/unlock")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UnlockUser(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound(new { Message = "User not found." });
-            if (user.Role == UserRole.Administrator)
-                return BadRequest(new { Message = "Administrator accounts cannot be deactivated here." });
+            var command = new Application.Features.Admin.Commands.UnlockUser.UnlockUserCommand { UserId = id };
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
+        }
 
-            // Keep relational/history data intact while permanently preventing login.
-            user.IsSuspended = true;
-            user.RefreshToken = null;
-            user.RefreshTokenExpiryTime = null;
-            await _context.SaveChangesAsync();
-            return Ok(new { user.Id, user.IsSuspended, request?.Reason });
+        public class UpdateNoteRequest
+        {
+            public string? Note { get; set; }
         }
 
         [HttpPut("users/{id}/note")]
-        public async Task<IActionResult> UpdateUserNote(int id, [FromBody] UserModerationRequest request)
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateUserNote(
+            Guid id, 
+            [FromBody] UpdateNoteRequest request, 
+            [FromServices] TutorMatchingPlatform.Domain.Interfaces.IAdminRepository adminRepository,
+            [FromServices] TutorMatchingPlatform.Application.Contracts.Notifications.INotificationSender notificationSender)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound(TutorMatchingPlatform.API.Common.ApiResponse<object>.Error(404, "User not found."));
-
-            if (!string.IsNullOrWhiteSpace(request.Reason))
+            var response = await adminRepository.UpdateUserNoteAsync(id, request.Note);
+            
+            if (response && !string.IsNullOrWhiteSpace(request.Note))
             {
-                var title = "[WARNING] Cảnh cáo từ Admin!";
-                var message = request.Reason;
+                var title = "[WARNING] Cảnh cáo từ Trung tâm!";
+                var message = request.Note;
 
-                var notification = new TutorMatchingPlatform.Domain.Entities.Notification
+                var notification = new TutorMatchingPlatform.Infrastructure.Models.NotificationDataModel
                 {
-                    ReceiverId = id,
+                    Id = Guid.NewGuid(),
+                    UserId = id,
                     Title = title,
                     Message = message,
-                    IsWarning = true,
+                    Type = 7, // System
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await _context.Notifications.AddAsync(notification);
-                await _context.SaveChangesAsync();
+                await _dbContext.Notifications.AddAsync(notification);
+                await _dbContext.SaveChangesAsync();
 
-                await _notificationSender.SendNotificationAsync(id, new
+                var dto = new TutorMatchingPlatform.Application.Contracts.Notifications.NotificationDto
                 {
-                    notification.Id,
-                    UserId = notification.ReceiverId,
-                    notification.Title,
-                    notification.Message,
-                    Type = "Warning",
-                    notification.IsRead,
-                    notification.CreatedAt
-                });
+                    Id = notification.Id,
+                    UserId = id,
+                    Title = title,
+                    Message = message,
+                    Type = "System",
+                    IsRead = false,
+                    CreatedAt = notification.CreatedAt
+                };
+
+                await notificationSender.SendNotificationAsync(id, dto);
             }
 
-            return Ok(TutorMatchingPlatform.API.Common.ApiResponse<bool>.Ok(true));
+            return Ok(ApiResponse<bool>.Ok(response));
         }
-    }
 
-    public class RejectCreditRequestDto
-    {
-        public string Reason { get; set; } = string.Empty;
-    }
+        // ── Review Management ─────────────────────────────────────────────
 
-    public class RejectProfileRequest
-    {
-        public string Reason { get; set; } = string.Empty;
-    }
+        [HttpGet("reviews")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllReviews(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] int? reviewType = null,
+            [FromQuery] int? rating = null)
+        {
+            var query = new Application.Features.Admin.Queries.GetAllReviews.GetAllReviewsQuery
+            {
+                PageNumber = pageNumber < 1 ? 1 : pageNumber,
+                PageSize = pageSize < 1 ? 20 : pageSize,
+                Search = search,
+                ReviewType = reviewType,
+                Rating = rating
+            };
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<Domain.Common.PagedResult<Domain.Common.AdminReviewResult>>.Ok(response));
+        }
 
-    public class ResolveComplaintRequestDto
-    {
-        public ComplaintAction Action { get; set; }
-        public string? Reason { get; set; }
-        public int? SuspendDays { get; set; }
-    }
+        [HttpGet("deposit-requests")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetDepositRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var query = _dbContext.DepositRequests
+                .OrderByDescending(r => r.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize);
 
-    public class UserModerationRequest
-    {
-        public string? Reason { get; set; }
+            var items = await query.Select(r => new {
+                r.Id,
+                r.UserId,
+                r.Amount,
+                r.Status,
+                r.CreatedAt,
+                RequesterName = r.User.FullName,
+                RequesterEmail = r.User.Email,
+                RequesterRole = r.User.Role == 2 ? "Student" : r.User.Role == 1 ? "Tutor" : "Admin"
+            }).ToListAsync();
+
+            var totalCount = await _dbContext.DepositRequests.CountAsync();
+
+            var pagedResult = new {
+                items,
+                totalCount
+            };
+
+            return Ok(ApiResponse<object>.Ok(pagedResult));
+        }
+
+        [HttpPut("deposit-requests/{id}/approve")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ApproveDepositRequest(Guid id)
+        {
+            var request = await _dbContext.DepositRequests
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                return NotFound(ApiResponse<object>.Error(404, "Yêu cầu nạp tiền không tồn tại."));
+            }
+
+            if (request.Status != 0)
+            {
+                return BadRequest(ApiResponse<object>.Error(400, "Yêu cầu này đã được xử lý từ trước."));
+            }
+
+            // Update user balance
+            var user = await _dbContext.Users.FindAsync(request.UserId);
+            if (user == null)
+            {
+                return NotFound(ApiResponse<object>.Error(404, "Người dùng không tồn tại."));
+            }
+
+            user.CreditBalance += request.Amount;
+            request.Status = 1; // Approved
+            request.UpdatedAt = DateTime.UtcNow;
+
+            // Create transaction log
+            var tx = new TutorMatchingPlatform.Infrastructure.Models.CreditTransactionDataModel
+            {
+                Id = Guid.NewGuid(),
+                UserId = request.UserId,
+                Amount = request.Amount,
+                Type = 0, // Credit
+                Description = $"Admin approved deposit of {request.Amount:N2} credits.",
+                BalanceAfter = user.CreditBalance,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _dbContext.CreditTransactions.AddAsync(tx);
+            await _dbContext.SaveChangesAsync();
+
+            await _mediator.Publish(new TutorMatchingPlatform.Application.Features.Notifications.Events.DepositRequestApprovedEvent
+            {
+                UserId = request.UserId,
+                Amount = request.Amount,
+                NewBalance = user.CreditBalance
+            });
+
+            return Ok(ApiResponse<bool>.Ok(true));
+        }
+
+        [HttpPut("deposit-requests/{id}/reject")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> RejectDepositRequest(Guid id)
+        {
+            var request = await _dbContext.DepositRequests.FindAsync(id);
+            if (request == null)
+            {
+                return NotFound(ApiResponse<object>.Error(404, "Yêu cầu nạp tiền không tồn tại."));
+            }
+
+            if (request.Status != 0)
+            {
+                return BadRequest(ApiResponse<object>.Error(400, "Yêu cầu này đã được xử lý từ trước."));
+            }
+
+            request.Status = 2; // Rejected
+            request.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(ApiResponse<bool>.Ok(true));
+        }
     }
 }
