@@ -2,9 +2,9 @@ namespace TutorMatchingPlatform.Domain.Enums
 {
     public enum CreditTransactionType
     {
-        Deposit,
-        SessionFee,
-        LateCancellationFee,
-        Refund
+        Credit = 0,
+        Debit = 1,
+        Transfer = 2,
+        Refund = 3
     }
 }

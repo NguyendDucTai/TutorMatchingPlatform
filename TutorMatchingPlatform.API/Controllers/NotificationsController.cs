@@ -1,80 +1,95 @@
+using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TutorMatchingPlatform.Infrastructure.Data;
+using TutorMatchingPlatform.API.Common;
+using TutorMatchingPlatform.Domain.Common;
+using TutorMatchingPlatform.Application.Contracts.Notifications;
+using TutorMatchingPlatform.Application.Features.Notifications.Commands.MarkAllAsRead;
+using TutorMatchingPlatform.Application.Features.Notifications.Commands.MarkAsRead;
+using TutorMatchingPlatform.Application.Features.Notifications.Queries.GetNotifications;
+using TutorMatchingPlatform.Application.Features.Notifications.Queries.GetUnreadCount;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
+    [Route("api/[controller]")]
     [ApiController]
-    [Route("api/notifications")]
     [Authorize]
     public class NotificationsController : ControllerBase
     {
-        private readonly TutorMatchingPlatformDbContext _context;
+        private readonly IMediator _mediator;
 
-        public NotificationsController(TutorMatchingPlatformDbContext context)
+        public NotificationsController(IMediator mediator)
         {
-            _context = context;
+            _mediator = mediator;
+        }
+
+        private Guid GetUserId()
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdStr, out var userId))
+            {
+                return userId;
+            }
+            throw new UnauthorizedAccessException("User is not authenticated properly.");
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<NotificationDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetNotifications([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
+            var query = new GetNotificationsQuery
+            {
+                UserId = GetUserId(),
+                PageNumber = pageNumber <= 0 ? 1 : pageNumber,
+                PageSize = pageSize <= 0 ? 10 : pageSize
+            };
 
-            var notifications = await _context.Notifications
-                .AsNoTracking()
-                .Where(item => item.ReceiverId == userId)
-                .OrderByDescending(item => item.CreatedAt)
-                .Select(item => new
-                {
-                    item.Id,
-                    item.ReceiverId,
-                    item.Title,
-                    item.Message,
-                    item.IsWarning,
-                    item.IsRead,
-                    item.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(notifications);
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<NotificationDto>>.Ok(response));
         }
 
-        [HttpPatch("{id:int}/read")]
-        public async Task<IActionResult> MarkAsRead(int id)
+        [HttpGet("unread-count")]
+        [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetUnreadCount()
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
+            var query = new GetUnreadCountQuery
+            {
+                UserId = GetUserId()
+            };
 
-            var notification = await _context.Notifications
-                .SingleOrDefaultAsync(item => item.Id == id && item.ReceiverId == userId);
-            if (notification == null) return NotFound();
-
-            notification.IsRead = true;
-            await _context.SaveChangesAsync();
-            return NoContent();
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<int>.Ok(response));
         }
 
-        [HttpPatch("read-all")]
+        [HttpPut("{id}/read")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> MarkAsRead(Guid id)
+        {
+            var command = new MarkAsReadCommand
+            {
+                NotificationId = id,
+                UserId = GetUserId()
+            };
+
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
+        }
+
+        [HttpPut("read-all")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> MarkAllAsRead()
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
+            var command = new MarkAllAsReadCommand
+            {
+                UserId = GetUserId()
+            };
 
-            var notifications = await _context.Notifications
-                .Where(item => item.ReceiverId == userId && !item.IsRead)
-                .ToListAsync();
-
-            foreach (var notification in notifications)
-                notification.IsRead = true;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        private bool TryGetUserId(out int userId)
-        {
-            return int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+            var response = await _mediator.Send(command);
+            return Ok(ApiResponse<bool>.Ok(response));
         }
     }
 }

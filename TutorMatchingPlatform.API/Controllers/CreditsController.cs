@@ -3,14 +3,14 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TutorMatchingPlatform.API.Common;
-using TutorMatchingPlatform.Application.Credits.Commands.DepositCredit;
-using TutorMatchingPlatform.Application.Credits.Queries.GetCreditBalance;
-using TutorMatchingPlatform.Application.Credits.Queries.GetCreditTransactions;
-using TutorMatchingPlatform.Domain.Entities;
-using TutorMatchingPlatform.Infrastructure.Data;
+using TutorMatchingPlatform.Application.Contracts.Credits;
+using TutorMatchingPlatform.Application.Features.Credits.Commands.DepositCredits;
+using TutorMatchingPlatform.Application.Features.Credits.Queries.GetBalance;
+using TutorMatchingPlatform.Application.Features.Credits.Queries.GetCreditTransactions;
+using TutorMatchingPlatform.Domain.Common;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
@@ -18,40 +18,54 @@ namespace TutorMatchingPlatform.API.Controllers
     [Route("api/[controller]")]
     public class CreditsController : ControllerBase
     {
-        private readonly ISender _sender;
-        private readonly TutorMatchingPlatformDbContext _context;
+        private readonly IMediator _mediator;
+        private readonly TutorMatchingPlatform.Infrastructure.Persistence.ApplicationDbContext _dbContext;
         private readonly VNPAY.IVnpayClient _vnpayClient;
 
         public CreditsController(
-            ISender sender,
-            TutorMatchingPlatformDbContext context,
+            IMediator mediator, 
+            TutorMatchingPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext,
             VNPAY.IVnpayClient vnpayClient)
         {
-            _sender = sender;
-            _context = context;
+            _mediator = mediator;
+            _dbContext = dbContext;
             _vnpayClient = vnpayClient;
         }
 
-        [HttpPost("deposit")]
-        [Authorize]
-        public async Task<IActionResult> Deposit([FromBody] DepositCreditRequestDto request)
+        private static Guid LongToGuid(long value)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            byte[] bytes = new byte[16];
+            BitConverter.GetBytes(value).CopyTo(bytes, 0);
+            return new Guid(bytes);
+        }
+
+        private static long GuidToLong(Guid guid)
+        {
+            byte[] bytes = guid.ToByteArray();
+            return BitConverter.ToInt64(bytes, 0);
+        }
+
+        [HttpPost("deposit")]
+        [Authorize(Roles = "Student,Tutor")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Deposit([FromBody] DepositCreditsCommand command)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            if (request.Amount <= 0)
+            if (command.Amount <= 0)
             {
-                return BadRequest(ApiResponse<object>.Error(400, "Amount must be greater than 0."));
+                return BadRequest(ApiResponse<object>.Error(400, "Số tiền nạp phải lớn hơn 0."));
             }
 
-            // Create VNPAY request
+            // Create VNPAY request (PaymentId and CreatedTime are read-only and automatically generated)
             var vnpayRequest = new VNPAY.Models.VnpayPaymentRequest
             {
-                Money = (double)(request.Amount * 1000), // 1 credit = 1,000 VND
-                Description = $"Nap {request.Amount} credit vao tai khoan TutorMatchingPlatform",
+                Money = (double)(command.Amount * 1000), // 1 credit = 1,000 VND
+                Description = $"Nap {command.Amount} tin chi vao tai khoan TutorMatchingPlatform",
                 BankCode = VNPAY.Models.Enums.BankCode.ANY
             };
 
@@ -62,21 +76,25 @@ namespace TutorMatchingPlatform.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ApiResponse<object>.Error(400, $"VNPAY Initialization Error: {ex.Message}"));
+                return BadRequest(ApiResponse<object>.Error(400, $"Lỗi khởi tạo thanh toán VNPAY: {ex.Message}"));
             }
 
-            // Save pending credit request
-            var creditRequest = new CreditRequest
+            long paymentId = paymentUrlDetail.PaymentId;
+            Guid depositReqId = LongToGuid(paymentId);
+
+            // Create a pending deposit request
+            var request = new TutorMatchingPlatform.Infrastructure.Models.DepositRequestDataModel
             {
+                Id = depositReqId,
                 UserId = userId,
-                Amount = request.Amount,
-                Status = Domain.Enums.CreditRequestStatus.Pending,
+                Amount = command.Amount,
+                Status = 0, // Pending payment
                 CreatedAt = DateTime.UtcNow,
-                Note = $"VNPAY Payment ID: {paymentUrlDetail.PaymentId}"
+                UpdatedAt = DateTime.UtcNow
             };
 
-            await _context.CreditRequests.AddAsync(creditRequest);
-            await _context.SaveChangesAsync();
+            await _dbContext.DepositRequests.AddAsync(request);
+            await _dbContext.SaveChangesAsync();
 
             return Ok(ApiResponse<string>.Ok(paymentUrlDetail.Url));
         }
@@ -90,36 +108,43 @@ namespace TutorMatchingPlatform.API.Controllers
                 var paymentResult = _vnpayClient.GetPaymentResult(Request.Query);
                 if (paymentResult.PaymentId > 0)
                 {
-                    var paymentIdStr = $"VNPAY Payment ID: {paymentResult.PaymentId}";
-                    var creditRequest = await _context.CreditRequests
-                        .FirstOrDefaultAsync(r => r.Note == paymentIdStr && r.Status == Domain.Enums.CreditRequestStatus.Pending);
-
-                    if (creditRequest != null)
+                    var reqGuid = LongToGuid(paymentResult.PaymentId);
+                    var depositRequest = await _dbContext.DepositRequests.FindAsync(reqGuid);
+                    if (depositRequest != null && depositRequest.Status == 0)
                     {
-                        creditRequest.Status = Domain.Enums.CreditRequestStatus.Approved;
-                        creditRequest.ProcessedAt = DateTime.UtcNow;
+                        depositRequest.Status = 1; // Success
+                        depositRequest.UpdatedAt = DateTime.UtcNow;
 
-                        var user = await _context.Users.FindAsync(creditRequest.UserId);
+                        var user = await _dbContext.Users.FindAsync(depositRequest.UserId);
                         if (user != null)
                         {
-                            user.CreditBalance += creditRequest.Amount;
+                            user.CreditBalance += depositRequest.Amount;
 
-                            var transaction = new CreditTransaction
+                            var tx = new TutorMatchingPlatform.Infrastructure.Models.CreditTransactionDataModel
                             {
-                                UserId = creditRequest.UserId,
-                                Amount = creditRequest.Amount,
-                                Type = Domain.Enums.CreditTransactionType.Deposit,
-                                ReferenceId = paymentResult.VnpayTransactionId.ToString(),
-                                Description = $"Nạp tiền thành công qua VNPAY. Mã GD: {paymentResult.VnpayTransactionId}",
-                                CreatedAt = DateTime.UtcNow
+                                Id = Guid.NewGuid(),
+                                UserId = depositRequest.UserId,
+                                Amount = depositRequest.Amount,
+                                Type = 0, // Credit
+                                Description = $"Nạp tiền thành công qua cổng thanh toán VNPAY. Mã GD: {paymentResult.VnpayTransactionId}",
+                                BalanceAfter = user.CreditBalance,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow
                             };
 
-                            await _context.CreditTransactions.AddAsync(transaction);
-                            await _context.SaveChangesAsync();
+                            await _dbContext.CreditTransactions.AddAsync(tx);
+                            await _dbContext.SaveChangesAsync();
+
+                            await _mediator.Publish(new TutorMatchingPlatform.Application.Features.Notifications.Events.DepositRequestApprovedEvent
+                            {
+                                UserId = depositRequest.UserId,
+                                Amount = depositRequest.Amount,
+                                NewBalance = user.CreditBalance
+                            });
                         }
                         else
                         {
-                            await _context.SaveChangesAsync();
+                            await _dbContext.SaveChangesAsync();
                         }
 
                         return Redirect("http://localhost:5173/?tab=wallet&payment=success");
@@ -136,36 +161,44 @@ namespace TutorMatchingPlatform.API.Controllers
 
         [HttpGet("balance")]
         [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<WalletBalanceDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetBalance()
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            var result = await _sender.Send(new GetCreditBalanceQuery { UserId = userId });
-            return Ok(ApiResponse<object>.Ok(new { Balance = result }));
+            var query = new GetBalanceQuery(userId);
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<WalletBalanceDto>.Ok(response));
         }
 
         [HttpGet("transactions")]
         [Authorize]
-        public async Task<IActionResult> GetTransactions()
+        [ProducesResponseType(typeof(ApiResponse<PagedResult<CreditTransactionDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetTransactions([FromQuery] Guid? targetUserId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            var result = await _sender.Send(new GetCreditTransactionsQuery { UserId = userId });
-            return Ok(ApiResponse<object>.Ok(result));
-        }
-    }
+            var query = new GetCreditTransactionsQuery
+            {
+                UserId = userId,
+                TargetUserId = targetUserId,
+                RequestorRole = roleClaim ?? string.Empty,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
 
-    public class DepositCreditRequestDto
-    {
-        public decimal Amount { get; set; }
-        public string? Note { get; set; }
+            var response = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<CreditTransactionDto>>.Ok(response));
+        }
     }
 }

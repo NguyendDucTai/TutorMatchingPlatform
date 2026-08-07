@@ -2,10 +2,10 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using TutorMatchingPlatform.Application.Common.Exceptions;
 
 namespace TutorMatchingPlatform.API.Common
 {
@@ -26,15 +26,23 @@ namespace TutorMatchingPlatform.API.Common
             {
                 ValidationException validationEx => (
                     StatusCodes.Status400BadRequest,
-                    validationEx.Errors.Select(x => x.ErrorMessage).ToArray()
+                    validationEx.Errors.SelectMany(x => x.Value).ToArray()
                 ),
-                UnauthorizedAccessException unauthEx => (
-                    StatusCodes.Status401Unauthorized,
-                    new[] { unauthEx.Message }
-                ),
-                KeyNotFoundException notFoundEx => (
+                NotFoundException notFoundEx => (
                     StatusCodes.Status404NotFound,
                     new[] { notFoundEx.Message }
+                ),
+                ForbiddenException forbiddenEx => (
+                    StatusCodes.Status403Forbidden,
+                    new[] { forbiddenEx.Message }
+                ),
+                BadRequestException badReqEx => (
+                    StatusCodes.Status400BadRequest,
+                    new[] { badReqEx.Message }
+                ),
+                ConflictException conflictEx => (
+                    StatusCodes.Status409Conflict,
+                    new[] { conflictEx.Message }
                 ),
                 ArgumentException argEx => (
                     StatusCodes.Status400BadRequest,

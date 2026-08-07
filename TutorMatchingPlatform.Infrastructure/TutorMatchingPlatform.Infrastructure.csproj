@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,23 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageReference Include="VNPAY.NET" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TutorMatchingPlatform.Application\TutorMatchingPlatform.Application.csproj" />
     <ProjectReference Include="..\TutorMatchingPlatform.Domain\TutorMatchingPlatform.Domain.csproj" />
+    <ProjectReference Include="..\TutorMatchingPlatform.Application\TutorMatchingPlatform.Application.csproj" />
   </ItemGroup>
 
 </Project>

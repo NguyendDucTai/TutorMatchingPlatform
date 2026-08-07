@@ -1,17 +1,38 @@
-using System.Collections.Generic;
+using System;
 using TutorMatchingPlatform.Domain.Common;
 
 namespace TutorMatchingPlatform.Domain.Entities
 {
     public class StudentProfile : BaseEntity
     {
-        public int UserId { get; set; }
-        public string? StudyGoals { get; set; }
-        public string? TargetSubjectsJson { get; set; }
+        public Guid UserId { get; private set; }
+        public string? GradeLevel { get; private set; }
+        public string? LearningPreferences { get; private set; }
+        public decimal AverageRating { get; private set; }
 
-        public User User { get; set; } = null!;
-        public ICollection<Session> Sessions { get; set; } = new List<Session>();
-        public ICollection<Feedback> FeedbacksReceived { get; set; } = new List<Feedback>();
-        public ICollection<LearningMilestone> LearningMilestones { get; set; } = new List<LearningMilestone>();
+        private StudentProfile() { } // EF Core
+
+        public StudentProfile(Guid userId, string? gradeLevel, string? learningPreferences)
+        {
+            UserId = userId;
+            GradeLevel = gradeLevel;
+            LearningPreferences = learningPreferences;
+            AverageRating = 0;
+        }
+
+        public void UpdateDetails(string? gradeLevel, string? learningPreferences)
+        {
+            GradeLevel = gradeLevel;
+            LearningPreferences = learningPreferences;
+            MarkUpdated();
+        }
+
+        // Student's rating calculated based on reviews from tutors
+        public void RecalculateRating(int newRating, int currentTotalReviews)
+        {
+            decimal totalScore = (AverageRating * currentTotalReviews) + newRating;
+            AverageRating = totalScore / (currentTotalReviews + 1);
+            MarkUpdated();
+        }
     }
 }

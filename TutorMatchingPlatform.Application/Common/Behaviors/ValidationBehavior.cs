@@ -1,14 +1,15 @@
-using FluentValidation;
-using MediatR;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentValidation;
+using MediatR;
+using ValidationException = TutorMatchingPlatform.Application.Common.Exceptions.ValidationException;
 
 namespace TutorMatchingPlatform.Application.Common.Behaviors
 {
     public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-        where TRequest : IRequest<TResponse>
+        where TRequest : notnull
     {
         private readonly IEnumerable<IValidator<TRequest>> _validators;
 
@@ -33,10 +34,10 @@ namespace TutorMatchingPlatform.Application.Common.Behaviors
 
                 if (failures.Count != 0)
                 {
-                    // Throw FluentValidation exception which can be caught globally later
                     throw new ValidationException(failures);
                 }
             }
+
             return await next();
         }
     }

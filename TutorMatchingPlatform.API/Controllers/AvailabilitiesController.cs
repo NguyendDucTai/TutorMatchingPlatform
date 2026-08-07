@@ -1,13 +1,12 @@
 using System;
-using System.Linq;
-using System.Security.Claims;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TutorMatchingPlatform.API.Common;
-using TutorMatchingPlatform.Application.Interfaces;
-using TutorMatchingPlatform.Domain.Entities;
+using TutorMatchingPlatform.Application.Contracts.Availabilities;
+using TutorMatchingPlatform.Application.Features.Availabilities.Commands.UpdateAvailability;
+using TutorMatchingPlatform.Application.Features.Availabilities.Queries.GetAvailabilities;
 
 namespace TutorMatchingPlatform.API.Controllers
 {
@@ -15,108 +14,39 @@ namespace TutorMatchingPlatform.API.Controllers
     [Route("api/[controller]")]
     public class AvailabilitiesController : ControllerBase
     {
-        private readonly IAppDbContext _context;
+        private readonly IMediator _mediator;
 
-        public AvailabilitiesController(IAppDbContext context)
+        public AvailabilitiesController(IMediator mediator)
         {
-            _context = context;
+            _mediator = mediator;
         }
 
-        [HttpGet("tutor/{tutorProfileId}")]
-        public async Task<IActionResult> GetTutorAvailability(int tutorProfileId)
+        [HttpGet("{tutorId}")]
+        public async Task<ActionResult<List<AvailabilityDto>>> GetAvailabilities(Guid tutorId)
         {
-            var availabilities = await _context.Availabilities
-                .AsNoTracking()
-                .Where(a => a.TutorProfileId == tutorProfileId)
-                .OrderBy(a => a.DayOfWeek)
-                .ThenBy(a => a.StartTime)
-                .Select(a => new
-                {
-                    a.Id,
-                    a.TutorProfileId,
-                    a.DayOfWeek,
-                    a.StartTime,
-                    a.EndTime,
-                    a.IsRecurring,
-                    a.SpecificDate
-                })
-                .ToListAsync();
-
-            return Ok(ApiResponse<object>.Ok(availabilities));
+            var query = new GetAvailabilitiesQuery { TutorId = tutorId };
+            var result = await _mediator.Send(query);
+            return Ok(result);
         }
 
-        [HttpPost]
         [Authorize(Roles = "Tutor")]
-        public async Task<IActionResult> CreateAvailability([FromBody] CreateAvailabilityDto request)
+        [HttpPut("my-availability")]
+        public async Task<ActionResult> UpdateMyAvailability([FromBody] List<UpdateAvailabilityItemDto> availabilities)
         {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var tutorId))
             {
                 return Unauthorized();
             }
 
-            var tutorProfile = await _context.TutorProfiles.FirstOrDefaultAsync(t => t.UserId == userId);
-            if (tutorProfile == null)
+            var command = new UpdateAvailabilityCommand
             {
-                return BadRequest(ApiResponse<object>.Error(400, "Tutor profile not found."));
-            }
-
-            if (request.StartTime >= request.EndTime)
-            {
-                return BadRequest(ApiResponse<object>.Error(400, "StartTime must be before EndTime."));
-            }
-
-            var availability = new Availability
-            {
-                TutorProfileId = tutorProfile.Id,
-                DayOfWeek = request.DayOfWeek,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
-                IsRecurring = request.IsRecurring,
-                SpecificDate = request.SpecificDate?.Date
+                TutorId = tutorId,
+                Availabilities = availabilities
             };
 
-            await _context.Availabilities.AddAsync(availability);
-            await _context.SaveChangesAsync();
-
-            return Ok(ApiResponse<object>.Created(availability));
+            await _mediator.Send(command);
+            return NoContent();
         }
-
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Tutor")]
-        public async Task<IActionResult> DeleteAvailability(int id)
-        {
-            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var tutorProfile = await _context.TutorProfiles.FirstOrDefaultAsync(t => t.UserId == userId);
-            if (tutorProfile == null)
-            {
-                return BadRequest(ApiResponse<object>.Error(400, "Tutor profile not found."));
-            }
-
-            var availability = await _context.Availabilities.FirstOrDefaultAsync(a => a.Id == id && a.TutorProfileId == tutorProfile.Id);
-            if (availability == null)
-            {
-                return NotFound(ApiResponse<object>.Error(404, "Availability slot not found."));
-            }
-
-            _context.Availabilities.Remove(availability);
-            await _context.SaveChangesAsync();
-
-            return Ok(ApiResponse<bool>.Ok(true));
-        }
-    }
-
-    public class CreateAvailabilityDto
-    {
-        public DayOfWeek? DayOfWeek { get; set; }
-        public TimeSpan StartTime { get; set; }
-        public TimeSpan EndTime { get; set; }
-        public bool IsRecurring { get; set; } = true;
-        public DateTime? SpecificDate { get; set; }
     }
 }

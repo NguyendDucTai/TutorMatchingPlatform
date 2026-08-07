@@ -2,8 +2,8 @@ namespace TutorMatchingPlatform.Domain.Enums
 {
     public enum UserRole
     {
-        Student,
-        Tutor,
-        Administrator
+        Admin = 0,
+        Tutor = 1,
+        Student = 2
     }
 }
