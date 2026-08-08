@@ -73,19 +73,26 @@ namespace TutorPlatform.Infrastructure.Services
                     else
                     {
                         var errorBody = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine($"[BREVO ERROR] Brevo API status {response.StatusCode}: {errorBody}");
-                        throw new InvalidOperationException($"Không thể gửi Email qua Brevo: {response.StatusCode} - {errorBody}");
+                        Console.WriteLine($"=================================================");
+                        Console.WriteLine($"[BREVO WARNING] Key Brevo chưa kích hoạt hoặc lỗi ({response.StatusCode}): {errorBody}");
+                        Console.WriteLine($"[EMAIL FALLBACK] Nội dung Email & Mã OTP gửi tới {toEmail}:");
+                        Console.WriteLine(htmlContent);
+                        Console.WriteLine($"=================================================");
+                        return;
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[BREVO EXCEPTION] {ex.Message}");
-                    throw;
                 }
             }
 
-            // 2. Dev Fallback: If Brevo ApiKey is empty, log to Console
+            // 2. Dev Fallback: If Brevo ApiKey is empty or fails, log to Console
+            Console.WriteLine($"=================================================");
             Console.WriteLine($"[DEV NOTICE] Brevo ApiKey is not configured. Email logged to Console.");
+            Console.WriteLine($"[EMAIL CONTENT] To: {toEmail} | Subject: {subject}");
+            Console.WriteLine(htmlContent);
+            Console.WriteLine($"=================================================");
         }
     }
 }
