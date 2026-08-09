@@ -19,5 +19,6 @@ namespace TutorPlatform.Domain.Interfaces
         Task<bool> HasConfirmedOverlappingBookingAsync(Guid tutorId, DateTime start, DateTime end);
         Task<bool> HasStudentConfirmedOverlappingBookingAsync(Guid studentId, DateTime start, DateTime end);
         Task<bool> HasStudentActiveBookingForSubjectAsync(Guid studentId, DateTime start, DateTime end, Guid subjectId);
+        Task<int> CountActiveBookingsBySubjectIdAsync(Guid subjectId);
     }
 }

@@ -51,7 +51,7 @@ namespace TutorPlatform.Infrastructure.Repositories
             // 2. Subject Filtering
             if (subjectId.HasValue)
             {
-                query = query.Where(tp => tp.TutorSubjects.Any(ts => ts.SubjectId == subjectId.Value));
+                query = query.Where(tp => tp.TutorSubjects.Any(ts => ts.SubjectId == subjectId.Value && ts.Subject.IsActive));
             }
 
             // 3. Price Filtering
@@ -185,13 +185,15 @@ namespace TutorPlatform.Infrastructure.Repositories
                     Phone = tp.User.Phone,
                     Email = tp.User.Email,
                     DefaultMeetingLink = tp.DefaultMeetingLink,
-                    Subjects = tp.TutorSubjects.Select(ts => new TutorSearchSubjectResult
-                    {
-                        SubjectId = ts.SubjectId,
-                        SubjectName = ts.Subject.Name,
-                        ProficiencyLevel = ts.ProficiencyLevel,
-                        HourlyCredits = ts.HourlyCredits
-                    }).ToList()
+                    Subjects = tp.TutorSubjects
+                        .Where(ts => ts.Subject.IsActive)
+                        .Select(ts => new TutorSearchSubjectResult
+                        {
+                            SubjectId = ts.SubjectId,
+                            SubjectName = ts.Subject.Name,
+                            ProficiencyLevel = ts.ProficiencyLevel,
+                            HourlyCredits = ts.HourlyCredits
+                        }).ToList()
                 })
                 .ToListAsync();
 
@@ -238,13 +240,15 @@ namespace TutorPlatform.Infrastructure.Repositories
                 Phone = tp.User.Phone,
                 Email = tp.User.Email,
                 DefaultMeetingLink = tp.DefaultMeetingLink,
-                Subjects = tp.TutorSubjects.Select(ts => new TutorSearchSubjectResult
-                {
-                    SubjectId = ts.SubjectId,
-                    SubjectName = ts.Subject.Name,
-                    ProficiencyLevel = ts.ProficiencyLevel,
-                    HourlyCredits = ts.HourlyCredits
-                }).ToList()
+                Subjects = tp.TutorSubjects
+                    .Where(ts => ts.Subject.IsActive)
+                    .Select(ts => new TutorSearchSubjectResult
+                    {
+                        SubjectId = ts.SubjectId,
+                        SubjectName = ts.Subject.Name,
+                        ProficiencyLevel = ts.ProficiencyLevel,
+                        HourlyCredits = ts.HourlyCredits
+                    }).ToList()
             };
         }
     }

@@ -14,6 +14,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CreateBooking
     {
         private readonly IBookingRepository _bookingRepository;
         private readonly IUserRepository _userRepository;
+        private readonly ISubjectRepository _subjectRepository;
         private readonly IAvailabilityRepository _availabilityRepository;
         private readonly ICreditService _creditService;
         private readonly IUnitOfWork _unitOfWork;
@@ -22,6 +23,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CreateBooking
         public CreateBookingCommandHandler(
             IBookingRepository bookingRepository,
             IUserRepository userRepository,
+            ISubjectRepository subjectRepository,
             IAvailabilityRepository availabilityRepository,
             ICreditService creditService,
             IUnitOfWork unitOfWork,
@@ -29,6 +31,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CreateBooking
         {
             _bookingRepository = bookingRepository;
             _userRepository = userRepository;
+            _subjectRepository = subjectRepository;
             _availabilityRepository = availabilityRepository;
             _creditService = creditService;
             _unitOfWork = unitOfWork;
@@ -47,6 +50,12 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CreateBooking
             var tutorProfile = await _userRepository.GetTutorProfileAsync(request.TutorId);
             if (tutorProfile == null) return CreateBookingResult.Fail("Tutor profile not found.");
             if (!tutorProfile.IsApproved) return CreateBookingResult.Fail("Hồ sơ gia sư chưa được Admin phê duyệt hoặc đã bị từ chối.");
+
+            var subject = await _subjectRepository.GetByIdAsync(request.SubjectId);
+            if (subject == null || !subject.IsActive)
+            {
+                return CreateBookingResult.Fail("Môn học này hiện đã bị tạm ngưng hoặc khóa bởi Quản trị viên.");
+            }
 
             var tutorSubject = tutorProfile.TutorSubjects.FirstOrDefault(ts => ts.SubjectId == request.SubjectId);
             if (tutorSubject == null) return CreateBookingResult.Fail("Tutor does not teach this subject.");
