@@ -29,7 +29,7 @@ namespace TutorPlatform.Application.Features.Profiles.Commands.UpdateTutorSubjec
                 await _userRepository.AddTutorProfileAsync(profile);
             }
 
-            // Verify all subjects exist
+            // Verify all subjects exist and are active
             var allSubjectIds = request.Subjects.Select(s => s.SubjectId).ToList();
             foreach(var subId in allSubjectIds)
             {
@@ -37,6 +37,10 @@ namespace TutorPlatform.Application.Features.Profiles.Commands.UpdateTutorSubjec
                 if (subject == null)
                 {
                     throw new NotFoundException(nameof(Subject), subId);
+                }
+                if (!subject.IsActive)
+                {
+                    throw new BadRequestException($"Môn học '{subject.Name}' hiện đang tạm ngưng hoạt động. Vui lòng không chọn môn này.");
                 }
             }
 

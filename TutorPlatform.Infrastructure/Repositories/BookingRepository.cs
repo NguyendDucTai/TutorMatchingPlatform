@@ -160,6 +160,13 @@ namespace TutorPlatform.Infrastructure.Repositories
                             && b.ScheduledEndAt > start);
         }
 
+        public async Task<int> CountActiveBookingsBySubjectIdAsync(Guid subjectId)
+        {
+            return await _dbContext.Bookings
+                .CountAsync(b => b.SubjectId == subjectId
+                            && (b.Status == (int)BookingStatus.Pending || b.Status == (int)BookingStatus.Confirmed));
+        }
+
 
 
 
