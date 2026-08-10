@@ -26,6 +26,8 @@ namespace TutorPlatform.Application.Features.Bookings.Queries.GetMyBookings
         public string? StudentComment { get; set; }
         public int? TutorRating { get; set; }
         public string? TutorComment { get; set; }
+        public string? CancellationReason { get; set; }
+        public Guid? CancelledBy { get; set; }
     }
 
     public class GetMyBookingsQuery : IRequest<PagedResult<BookingDto>>

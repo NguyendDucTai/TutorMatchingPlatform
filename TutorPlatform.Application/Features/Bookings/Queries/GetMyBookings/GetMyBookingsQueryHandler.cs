@@ -59,7 +59,9 @@ namespace TutorPlatform.Application.Features.Bookings.Queries.GetMyBookings
                     StudentRating = studentReview?.Rating,
                     StudentComment = studentReview?.Comment,
                     TutorRating = tutorReview?.Rating,
-                    TutorComment = tutorReview?.Comment
+                    TutorComment = tutorReview?.Comment,
+                    CancellationReason = b.CancellationReason,
+                    CancelledBy = b.CancelledBy
                 });
             }
 
