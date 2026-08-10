@@ -42,11 +42,9 @@ namespace TutorPlatform.Application.Features.Progress.Commands.CreateSessionReco
                 throw new BadRequestException("Session records can only be created for completed bookings.");
             }
 
-            // Verify start time (prevent writing session records before the session has started)
-            var scheduledStart = booking.ScheduledStartAt;
-            bool isFutureUtc = DateTime.UtcNow < DateTime.SpecifyKind(scheduledStart, DateTimeKind.Utc);
-            bool isFutureLocal = DateTime.Now < DateTime.SpecifyKind(scheduledStart, DateTimeKind.Local);
-            if (isFutureUtc && isFutureLocal)
+            // Verify start time (using Vietnam local time UTC+7)
+            var nowVietnam = DateTime.UtcNow.AddHours(7);
+            if (nowVietnam < booking.ScheduledStartAt)
             {
                 throw new BadRequestException("Cannot write session feedback before the scheduled start time.");
             }
