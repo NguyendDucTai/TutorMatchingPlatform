@@ -14,13 +14,20 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CompleteBooking
         private readonly ICreditService _creditService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserRepository _userRepository;
+        private readonly IPublisher _publisher;
 
-        public CompleteBookingCommandHandler(IBookingRepository bookingRepository, ICreditService creditService, IUnitOfWork unitOfWork, IUserRepository userRepository)
+        public CompleteBookingCommandHandler(
+            IBookingRepository bookingRepository,
+            ICreditService creditService,
+            IUnitOfWork unitOfWork,
+            IUserRepository userRepository,
+            IPublisher publisher)
         {
             _bookingRepository = bookingRepository;
             _creditService = creditService;
             _unitOfWork = unitOfWork;
             _userRepository = userRepository;
+            _publisher = publisher;
         }
 
         public async Task<bool> Handle(CompleteBookingCommand request, CancellationToken cancellationToken)
@@ -62,6 +69,16 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CompleteBooking
                 await _unitOfWork.RollbackTransactionAsync();
                 throw;
             }
+
+            // Fetch tutor name and publish booking completed event
+            var tutor = await _userRepository.GetByIdAsync(booking.TutorId);
+            var tutorName = tutor?.FullName ?? "Gia sư";
+
+            await _publisher.Publish(new TutorPlatform.Application.Features.Notifications.Events.BookingCompletedEvent
+            {
+                Booking = booking,
+                TutorName = tutorName
+            }, cancellationToken);
 
             return true;
         }
