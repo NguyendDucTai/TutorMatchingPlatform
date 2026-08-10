@@ -12,6 +12,8 @@ namespace TutorPlatform.Domain.Enums
         System = 7,
         TutorApprovalRequest = 8, // Sent to Admin when tutor submits profile
         TutorRejected = 9,         // Sent to Tutor when admin rejects
-        OverdueClassWarning = 10  // Sent to Tutor when booking time ends but tutor has not updated to Completed
+        OverdueClassWarning = 10,  // Sent to Tutor when booking time ends but tutor has not updated to Completed
+        MeetingLinkUpdated = 11,   // Sent to Student when tutor updates meeting link
+        BookingCompleted = 12      // Sent to Student when tutor completes booking
     }
 }

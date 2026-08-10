@@ -13,12 +13,21 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CancelBooking
         private readonly IBookingRepository _bookingRepository;
         private readonly ICreditService _creditService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IUserRepository _userRepository;
+        private readonly IPublisher _publisher;
 
-        public CancelBookingCommandHandler(IBookingRepository bookingRepository, ICreditService creditService, IUnitOfWork unitOfWork)
+        public CancelBookingCommandHandler(
+            IBookingRepository bookingRepository,
+            ICreditService creditService,
+            IUnitOfWork unitOfWork,
+            IUserRepository userRepository,
+            IPublisher publisher)
         {
             _bookingRepository = bookingRepository;
             _creditService = creditService;
             _unitOfWork = unitOfWork;
+            _userRepository = userRepository;
+            _publisher = publisher;
         }
 
         public async Task<bool> Handle(CancelBookingCommand request, CancellationToken cancellationToken)
@@ -46,6 +55,17 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CancelBooking
                 await _unitOfWork.RollbackTransactionAsync();
                 throw;
             }
+
+            // Fetch canceller user name and publish notification event
+            var cancellerUser = await _userRepository.GetByIdAsync(request.UserId);
+            var cancellerName = cancellerUser?.FullName ?? (request.UserId == booking.TutorId ? "Gia sư" : "Học viên");
+
+            await _publisher.Publish(new TutorPlatform.Application.Features.Notifications.Events.BookingCancelledEvent
+            {
+                Booking = booking,
+                CancelledByUserId = request.UserId,
+                CancelledByUserName = cancellerName
+            }, cancellationToken);
 
             return true;
         }

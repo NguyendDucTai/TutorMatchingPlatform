@@ -11,10 +11,17 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.UpdateMeetingLink
     public class UpdateMeetingLinkCommandHandler : IRequestHandler<UpdateMeetingLinkCommand, bool>
     {
         private readonly IBookingRepository _bookingRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IPublisher _publisher;
 
-        public UpdateMeetingLinkCommandHandler(IBookingRepository bookingRepository)
+        public UpdateMeetingLinkCommandHandler(
+            IBookingRepository bookingRepository,
+            IUserRepository userRepository,
+            IPublisher publisher)
         {
             _bookingRepository = bookingRepository;
+            _userRepository = userRepository;
+            _publisher = publisher;
         }
 
         public async Task<bool> Handle(UpdateMeetingLinkCommand request, CancellationToken cancellationToken)
@@ -32,6 +39,17 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.UpdateMeetingLink
             booking.UpdateMeetingLink(request.MeetingLink);
 
             await _bookingRepository.UpdateAsync(booking);
+
+            // Fetch tutor name and publish meeting link updated event
+            var tutor = await _userRepository.GetByIdAsync(booking.TutorId);
+            var tutorName = tutor?.FullName ?? "Gia sư";
+
+            await _publisher.Publish(new TutorPlatform.Application.Features.Notifications.Events.MeetingLinkUpdatedEvent
+            {
+                Booking = booking,
+                TutorName = tutorName,
+                NewMeetingLink = request.MeetingLink
+            }, cancellationToken);
 
             return true;
         }

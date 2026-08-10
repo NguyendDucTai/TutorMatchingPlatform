@@ -51,4 +51,17 @@ namespace TutorPlatform.Application.Features.Notifications.Events
         public decimal Amount { get; set; }
         public decimal NewBalance { get; set; }
     }
+
+    public class MeetingLinkUpdatedEvent : INotification
+    {
+        public Booking Booking { get; set; } = null!;
+        public string TutorName { get; set; } = string.Empty;
+        public string NewMeetingLink { get; set; } = string.Empty;
+    }
+
+    public class BookingCompletedEvent : INotification
+    {
+        public Booking Booking { get; set; } = null!;
+        public string TutorName { get; set; } = string.Empty;
+    }
 }
