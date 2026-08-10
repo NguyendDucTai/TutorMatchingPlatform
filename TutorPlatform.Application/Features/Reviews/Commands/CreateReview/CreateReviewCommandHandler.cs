@@ -34,8 +34,8 @@ namespace TutorPlatform.Application.Features.Reviews.Commands.CreateReview
                 throw new BadRequestException("Reviews can only be written for completed bookings.");
             }
 
-            // 2. Verify 14-day deadline
-            if (DateTime.UtcNow > booking.ScheduledEndAt.AddDays(14))
+            // 2. Verify 14-day deadline (using Vietnam local time UTC+7)
+            if (DateTime.UtcNow.AddHours(7) > booking.ScheduledEndAt.AddDays(14))
             {
                 throw new BadRequestException("The review period for this booking has expired (maximum 14 days after completion).");
             }

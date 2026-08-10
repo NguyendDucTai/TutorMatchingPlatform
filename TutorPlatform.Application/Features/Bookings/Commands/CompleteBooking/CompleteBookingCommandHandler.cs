@@ -37,11 +37,9 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CompleteBooking
 
             if (booking.TutorId != request.TutorId) throw new ForbiddenException("You can only complete your own bookings.");
 
-            // Prevent completing a booking before the scheduled start time (supports both UTC-stored new bookings and local-stored old bookings)
-            var scheduledStart = booking.ScheduledStartAt;
-            bool isFutureUtc = DateTime.UtcNow < DateTime.SpecifyKind(scheduledStart, DateTimeKind.Utc);
-            bool isFutureLocal = DateTime.Now < DateTime.SpecifyKind(scheduledStart, DateTimeKind.Local);
-            if (isFutureUtc && isFutureLocal)
+            // Prevent completing a booking before the scheduled start time (using Vietnam local time UTC+7)
+            var nowVietnam = DateTime.UtcNow.AddHours(7);
+            if (nowVietnam < booking.ScheduledStartAt)
             {
                 throw new BadRequestException("Không thể hoàn thành buổi học trước thời gian bắt đầu.");
             }
