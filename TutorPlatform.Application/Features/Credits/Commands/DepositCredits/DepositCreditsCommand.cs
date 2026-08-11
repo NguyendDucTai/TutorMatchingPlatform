@@ -7,5 +7,6 @@ namespace TutorPlatform.Application.Features.Credits.Commands.DepositCredits
     {
         public Guid UserId { get; set; }
         public decimal Amount { get; set; }
+        public string? ReturnUrl { get; set; }
     }
 }

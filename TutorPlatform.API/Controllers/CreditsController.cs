@@ -23,6 +23,8 @@ namespace TutorPlatform.API.Controllers
         private readonly VNPAY.IVnpayClient _vnpayClient;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string> _paymentOriginCache = new();
+
         public CreditsController(
             IMediator mediator, 
             TutorPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext,
@@ -35,14 +37,22 @@ namespace TutorPlatform.API.Controllers
             _configuration = configuration;
         }
 
-        private string GetFrontendRedirectUrl(string status)
+        private string GetFrontendRedirectUrl(long paymentId, string status)
         {
-            string frontendUrl = _configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app";
-            if (Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+            string targetOrigin;
+            if (paymentId > 0 && _paymentOriginCache.TryRemove(paymentId, out var cachedOrigin) && !string.IsNullOrWhiteSpace(cachedOrigin))
             {
-                frontendUrl = "http://localhost:5173";
+                targetOrigin = cachedOrigin;
             }
-            return $"{frontendUrl.TrimEnd('/')}/?tab=wallet&payment={status}";
+            else
+            {
+                targetOrigin = _configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app";
+                if (Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetOrigin = "http://localhost:5173";
+                }
+            }
+            return $"{targetOrigin.TrimEnd('/')}/?tab=wallet&payment={status}";
         }
 
         private static Guid LongToGuid(long value)
@@ -95,6 +105,18 @@ namespace TutorPlatform.API.Controllers
             long paymentId = paymentUrlDetail.PaymentId;
             Guid depositReqId = LongToGuid(paymentId);
 
+            // Dynamically determine and cache caller origin for zero-hardcode redirect
+            string clientOrigin = !string.IsNullOrWhiteSpace(command.ReturnUrl)
+                ? command.ReturnUrl
+                : (Request.Headers.TryGetValue("Origin", out var originHeader) && !string.IsNullOrWhiteSpace(originHeader)
+                    ? originHeader.ToString()
+                    : (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader)
+                        ? new Uri(refererHeader.ToString()).GetLeftPart(UriPartial.Authority)
+                        : (_configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app")));
+
+            clientOrigin = clientOrigin.TrimEnd('/');
+            _paymentOriginCache[paymentId] = clientOrigin;
+
             // Create a pending deposit request
             var request = new TutorPlatform.Infrastructure.Models.DepositRequestDataModel
             {
@@ -116,9 +138,11 @@ namespace TutorPlatform.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VnpayCallback()
         {
+            long currentPaymentId = 0;
             try
             {
                 var paymentResult = _vnpayClient.GetPaymentResult(Request.Query);
+                currentPaymentId = paymentResult.PaymentId;
                 if (paymentResult.PaymentId > 0)
                 {
                     var reqGuid = LongToGuid(paymentResult.PaymentId);
@@ -160,7 +184,7 @@ namespace TutorPlatform.API.Controllers
                             await _dbContext.SaveChangesAsync();
                         }
 
-                        return Redirect(GetFrontendRedirectUrl("success"));
+                        return Redirect(GetFrontendRedirectUrl(currentPaymentId, "success"));
                     }
                 }
             }
@@ -169,7 +193,7 @@ namespace TutorPlatform.API.Controllers
                 Console.WriteLine($"VNPAY Callback Exception: {ex.Message}");
             }
 
-            return Redirect(GetFrontendRedirectUrl("failed"));
+            return Redirect(GetFrontendRedirectUrl(currentPaymentId, "failed"));
         }
 
         [HttpGet("balance")]
