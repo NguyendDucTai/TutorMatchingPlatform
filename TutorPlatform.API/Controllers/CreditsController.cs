@@ -46,11 +46,12 @@ namespace TutorPlatform.API.Controllers
             }
             else
             {
-                targetOrigin = _configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app";
-                if (Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetOrigin = "http://localhost:5173";
-                }
+                targetOrigin = _configuration["FrontendUrl"] 
+                    ?? (Request.Headers.TryGetValue("Origin", out var originHeader) && !string.IsNullOrWhiteSpace(originHeader)
+                        ? originHeader.ToString()
+                        : (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader)
+                            ? new Uri(refererHeader.ToString()).GetLeftPart(UriPartial.Authority)
+                            : $"{Request.Scheme}://{Request.Host}"));
             }
             return $"{targetOrigin.TrimEnd('/')}/?tab=wallet&payment={status}";
         }
@@ -112,7 +113,7 @@ namespace TutorPlatform.API.Controllers
                     ? originHeader.ToString()
                     : (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader)
                         ? new Uri(refererHeader.ToString()).GetLeftPart(UriPartial.Authority)
-                        : (_configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app")));
+                        : (_configuration["FrontendUrl"] ?? $"{Request.Scheme}://{Request.Host}")));
 
             clientOrigin = clientOrigin.TrimEnd('/');
             _paymentOriginCache[paymentId] = clientOrigin;
