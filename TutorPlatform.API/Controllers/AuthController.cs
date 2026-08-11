@@ -51,10 +51,16 @@ namespace TutorPlatform.API.Controllers
             // Real-time single-session enforcement: Kick out any previously logged-in session of this account
             try
             {
-                await hubContext.Clients.Group(user.Id.ToString()).SendAsync("ForceLogout", new
+                var targetUserId = user.Id.ToString().ToLowerInvariant();
+                var logoutPayload = new
                 {
+                    userId = targetUserId,
                     message = "Tài khoản của bạn đã được đăng nhập ở nơi khác."
-                });
+                };
+
+                // Send to Group and All clients to guarantee instant delivery
+                await hubContext.Clients.Group(targetUserId).SendAsync("ForceLogout", logoutPayload);
+                await hubContext.Clients.All.SendAsync("ForceLogout", logoutPayload);
             }
             catch (Exception ex)
             {
