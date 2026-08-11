@@ -21,15 +21,20 @@ namespace TutorPlatform.API.Controllers
         private readonly IMediator _mediator;
         private readonly TutorPlatform.Infrastructure.Persistence.ApplicationDbContext _dbContext;
         private readonly VNPAY.IVnpayClient _vnpayClient;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> _depositReturnUrls = new();
 
         public CreditsController(
             IMediator mediator, 
             TutorPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext,
-            VNPAY.IVnpayClient vnpayClient)
+            VNPAY.IVnpayClient vnpayClient,
+            Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _mediator = mediator;
             _dbContext = dbContext;
             _vnpayClient = vnpayClient;
+            _configuration = configuration;
         }
 
         private static Guid LongToGuid(long value)
@@ -82,6 +87,27 @@ namespace TutorPlatform.API.Controllers
             long paymentId = paymentUrlDetail.PaymentId;
             Guid depositReqId = LongToGuid(paymentId);
 
+            // Dynamically register Frontend client return origin
+            string clientOrigin = command.ReturnUrl;
+            if (string.IsNullOrWhiteSpace(clientOrigin))
+            {
+                clientOrigin = Request.Headers["Origin"].ToString();
+            }
+            if (string.IsNullOrWhiteSpace(clientOrigin))
+            {
+                clientOrigin = Request.Headers["Referer"].ToString();
+            }
+            if (!string.IsNullOrWhiteSpace(clientOrigin))
+            {
+                try
+                {
+                    var uri = new Uri(clientOrigin);
+                    clientOrigin = $"{uri.Scheme}://{uri.Authority}";
+                    _depositReturnUrls[depositReqId] = clientOrigin;
+                }
+                catch {}
+            }
+
             // Create a pending deposit request
             var request = new TutorPlatform.Infrastructure.Models.DepositRequestDataModel
             {
@@ -103,12 +129,19 @@ namespace TutorPlatform.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VnpayCallback()
         {
+            string targetFrontendUrl = null;
+
             try
             {
                 var paymentResult = _vnpayClient.GetPaymentResult(Request.Query);
                 if (paymentResult.PaymentId > 0)
                 {
                     var reqGuid = LongToGuid(paymentResult.PaymentId);
+                    if (_depositReturnUrls.TryRemove(reqGuid, out var savedOrigin) && !string.IsNullOrWhiteSpace(savedOrigin))
+                    {
+                        targetFrontendUrl = savedOrigin;
+                    }
+
                     var depositRequest = await _dbContext.DepositRequests.FindAsync(reqGuid);
                     if (depositRequest != null && depositRequest.Status == 0)
                     {
@@ -147,7 +180,12 @@ namespace TutorPlatform.API.Controllers
                             await _dbContext.SaveChangesAsync();
                         }
 
-                        return Redirect("http://localhost:5173/?tab=wallet&payment=success");
+                        if (string.IsNullOrWhiteSpace(targetFrontendUrl))
+                        {
+                            targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
+                        }
+                        targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
+                        return Redirect($"{targetFrontendUrl}/wallet?payment=success");
                     }
                 }
             }
@@ -156,7 +194,12 @@ namespace TutorPlatform.API.Controllers
                 Console.WriteLine($"VNPAY Callback Exception: {ex.Message}");
             }
 
-            return Redirect("http://localhost:5173/?tab=wallet&payment=failed");
+            if (string.IsNullOrWhiteSpace(targetFrontendUrl))
+            {
+                targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
+            }
+            targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
+            return Redirect($"{targetFrontendUrl}/wallet?payment=failed");
         }
 
         [HttpGet("balance")]
