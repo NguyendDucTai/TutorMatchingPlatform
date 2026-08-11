@@ -34,7 +34,8 @@ namespace TutorPlatform.API.Controllers
         public async Task<IActionResult> Login(
             [FromBody] LoginRequest request,
             [FromServices] IUserRepository userRepository,
-            [FromServices] TutorPlatform.Application.Common.Interfaces.IPasswordHasher passwordHasher)
+            [FromServices] TutorPlatform.Application.Common.Interfaces.IPasswordHasher passwordHasher,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<TutorPlatform.API.Hubs.NotificationHub> hubContext)
         {
             var user = await userRepository.GetByEmailAsync(request.Email);
             if (user == null || !passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
@@ -45,6 +46,19 @@ namespace TutorPlatform.API.Controllers
             if (!user.IsActive)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<AuthResponse>.Error(403, "Tài khoản của bạn đã bị vô hiệu hóa hoặc sa thải."));
+            }
+
+            // Real-time single-session enforcement: Kick out any previously logged-in session of this account
+            try
+            {
+                await hubContext.Clients.Group(user.Id.ToString()).SendAsync("ForceLogout", new
+                {
+                    message = "Tài khoản của bạn đã được đăng nhập ở nơi khác."
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ForceLogout SignalR notification note: {ex.Message}");
             }
 
             var command = new LoginCommand
