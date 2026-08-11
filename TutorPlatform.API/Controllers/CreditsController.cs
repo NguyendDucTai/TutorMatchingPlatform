@@ -21,15 +21,28 @@ namespace TutorPlatform.API.Controllers
         private readonly IMediator _mediator;
         private readonly TutorPlatform.Infrastructure.Persistence.ApplicationDbContext _dbContext;
         private readonly VNPAY.IVnpayClient _vnpayClient;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
         public CreditsController(
             IMediator mediator, 
             TutorPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext,
-            VNPAY.IVnpayClient vnpayClient)
+            VNPAY.IVnpayClient vnpayClient,
+            Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _mediator = mediator;
             _dbContext = dbContext;
             _vnpayClient = vnpayClient;
+            _configuration = configuration;
+        }
+
+        private string GetFrontendRedirectUrl(string status)
+        {
+            string frontendUrl = _configuration["FrontendUrl"] ?? "https://tutormatching-platform.vercel.app";
+            if (Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                frontendUrl = "http://localhost:5173";
+            }
+            return $"{frontendUrl.TrimEnd('/')}/?tab=wallet&payment={status}";
         }
 
         private static Guid LongToGuid(long value)
@@ -147,7 +160,7 @@ namespace TutorPlatform.API.Controllers
                             await _dbContext.SaveChangesAsync();
                         }
 
-                        return Redirect("http://localhost:5173/?tab=wallet&payment=success");
+                        return Redirect(GetFrontendRedirectUrl("success"));
                     }
                 }
             }
@@ -156,7 +169,7 @@ namespace TutorPlatform.API.Controllers
                 Console.WriteLine($"VNPAY Callback Exception: {ex.Message}");
             }
 
-            return Redirect("http://localhost:5173/?tab=wallet&payment=failed");
+            return Redirect(GetFrontendRedirectUrl("failed"));
         }
 
         [HttpGet("balance")]
