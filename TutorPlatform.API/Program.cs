@@ -59,6 +59,7 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TutorPlatform.API.Common.UserSessionValidationMiddleware>();
 
 app.MapControllers();
 app.MapHub<TutorPlatform.API.Hubs.NotificationHub>("/hubs/notifications");

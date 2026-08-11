@@ -74,6 +74,10 @@ namespace TutorPlatform.API.Controllers
             };
 
             var response = await _mediator.Send(command);
+            if (response != null && !string.IsNullOrWhiteSpace(response.AccessToken))
+            {
+                TutorPlatform.API.Common.UserSessionManager.RegisterSession(user.Id, response.AccessToken);
+            }
             return Ok(ApiResponse<AuthResponse>.Ok(response));
         }
 
@@ -105,6 +109,10 @@ namespace TutorPlatform.API.Controllers
             };
 
             var response = await _mediator.Send(command);
+            if (response != null && response.User != null && !string.IsNullOrWhiteSpace(response.AccessToken))
+            {
+                TutorPlatform.API.Common.UserSessionManager.RegisterSession(response.User.Id, response.AccessToken);
+            }
             return Ok(ApiResponse<AuthResponse>.Ok(response));
         }
 
