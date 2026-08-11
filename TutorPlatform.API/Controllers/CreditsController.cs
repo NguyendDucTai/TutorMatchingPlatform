@@ -21,63 +21,15 @@ namespace TutorPlatform.API.Controllers
         private readonly IMediator _mediator;
         private readonly TutorPlatform.Infrastructure.Persistence.ApplicationDbContext _dbContext;
         private readonly VNPAY.IVnpayClient _vnpayClient;
-        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
-
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string> _paymentOriginCache = new();
 
         public CreditsController(
             IMediator mediator, 
             TutorPlatform.Infrastructure.Persistence.ApplicationDbContext dbContext,
-            VNPAY.IVnpayClient vnpayClient,
-            Microsoft.Extensions.Configuration.IConfiguration configuration)
+            VNPAY.IVnpayClient vnpayClient)
         {
             _mediator = mediator;
             _dbContext = dbContext;
             _vnpayClient = vnpayClient;
-            _configuration = configuration;
-        }
-
-        private string GetFrontendRedirectUrl(string? description, long paymentId, string status)
-        {
-            string? targetOrigin = null;
-
-            // 1. Try to extract from VNPay description tag [ORIGIN:...]
-            if (!string.IsNullOrWhiteSpace(description) && description.Contains("[ORIGIN:", StringComparison.OrdinalIgnoreCase))
-            {
-                int start = description.IndexOf("[ORIGIN:", StringComparison.OrdinalIgnoreCase) + 8;
-                int end = description.IndexOf("]", start);
-                if (end > start)
-                {
-                    var extracted = description.Substring(start, end - start).Trim();
-                    if (!string.IsNullOrWhiteSpace(extracted) && !extracted.Contains("vnpayment.vn", StringComparison.OrdinalIgnoreCase))
-                    {
-                        targetOrigin = extracted;
-                    }
-                }
-            }
-
-            // 2. Try to extract from in-memory cache
-            if (string.IsNullOrWhiteSpace(targetOrigin) && paymentId > 0 && _paymentOriginCache.TryRemove(paymentId, out var cachedOrigin) && !string.IsNullOrWhiteSpace(cachedOrigin))
-            {
-                if (!cachedOrigin.Contains("vnpayment.vn", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetOrigin = cachedOrigin;
-                }
-            }
-
-            // 3. Fallback safely (NEVER redirect to vnpayment.vn)
-            if (string.IsNullOrWhiteSpace(targetOrigin) || targetOrigin.Contains("vnpayment.vn", StringComparison.OrdinalIgnoreCase))
-            {
-                targetOrigin = _configuration["FrontendUrl"];
-                if (string.IsNullOrWhiteSpace(targetOrigin))
-                {
-                    targetOrigin = Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-                        ? "http://localhost:5173"
-                        : "https://tutormatching-platform.vercel.app";
-                }
-            }
-
-            return $"{targetOrigin.TrimEnd('/')}/?tab=wallet&payment={status}";
         }
 
         private static Guid LongToGuid(long value)
@@ -109,22 +61,11 @@ namespace TutorPlatform.API.Controllers
                 return BadRequest(ApiResponse<object>.Error(400, "Số tiền nạp phải lớn hơn 0."));
             }
 
-            // Dynamically determine caller origin
-            string clientOrigin = !string.IsNullOrWhiteSpace(command.ReturnUrl)
-                ? command.ReturnUrl
-                : (Request.Headers.TryGetValue("Origin", out var originHeader) && !string.IsNullOrWhiteSpace(originHeader)
-                    ? originHeader.ToString()
-                    : (Request.Headers.TryGetValue("Referer", out var refererHeader) && !string.IsNullOrWhiteSpace(refererHeader) && !refererHeader.ToString().Contains("vnpayment.vn", StringComparison.OrdinalIgnoreCase)
-                        ? new Uri(refererHeader.ToString()).GetLeftPart(UriPartial.Authority)
-                        : (_configuration["FrontendUrl"] ?? $"{Request.Scheme}://{Request.Host}")));
-
-            clientOrigin = clientOrigin.TrimEnd('/');
-
-            // Create VNPAY request with origin embedded in Description (vnp_OrderInfo)
+            // Create VNPAY request (PaymentId and CreatedTime are read-only and automatically generated)
             var vnpayRequest = new VNPAY.Models.VnpayPaymentRequest
             {
                 Money = (double)(command.Amount * 1000), // 1 credit = 1,000 VND
-                Description = $"Nap {command.Amount} tc [ORIGIN:{clientOrigin}]",
+                Description = $"Nap {command.Amount} tin chi vao tai khoan TutorPlatform",
                 BankCode = VNPAY.Models.Enums.BankCode.ANY
             };
 
@@ -140,8 +81,6 @@ namespace TutorPlatform.API.Controllers
 
             long paymentId = paymentUrlDetail.PaymentId;
             Guid depositReqId = LongToGuid(paymentId);
-
-            _paymentOriginCache[paymentId] = clientOrigin;
 
             // Create a pending deposit request
             var request = new TutorPlatform.Infrastructure.Models.DepositRequestDataModel
@@ -164,13 +103,9 @@ namespace TutorPlatform.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VnpayCallback()
         {
-            long currentPaymentId = 0;
-            string? paymentDescription = null;
             try
             {
                 var paymentResult = _vnpayClient.GetPaymentResult(Request.Query);
-                currentPaymentId = paymentResult.PaymentId;
-                paymentDescription = paymentResult.Description;
                 if (paymentResult.PaymentId > 0)
                 {
                     var reqGuid = LongToGuid(paymentResult.PaymentId);
@@ -212,7 +147,7 @@ namespace TutorPlatform.API.Controllers
                             await _dbContext.SaveChangesAsync();
                         }
 
-                        return Redirect(GetFrontendRedirectUrl(paymentDescription, currentPaymentId, "success"));
+                        return Redirect("http://localhost:5173/?tab=wallet&payment=success");
                     }
                 }
             }
@@ -221,7 +156,7 @@ namespace TutorPlatform.API.Controllers
                 Console.WriteLine($"VNPAY Callback Exception: {ex.Message}");
             }
 
-            return Redirect(GetFrontendRedirectUrl(paymentDescription, currentPaymentId, "failed"));
+            return Redirect("http://localhost:5173/?tab=wallet&payment=failed");
         }
 
         [HttpGet("balance")]
