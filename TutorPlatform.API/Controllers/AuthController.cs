@@ -15,6 +15,7 @@ using TutorPlatform.Application.Features.Auth.Commands.RefreshToken;
 using TutorPlatform.Application.Features.Auth.Commands.Register;
 using TutorPlatform.Application.Features.Auth.Commands.ResetPasswordWithOtp;
 using TutorPlatform.Domain.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 
 namespace TutorPlatform.API.Controllers
 {
