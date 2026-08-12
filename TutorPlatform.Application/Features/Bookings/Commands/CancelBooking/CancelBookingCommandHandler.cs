@@ -40,6 +40,16 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CancelBooking
                 throw new ForbiddenException("You are not part of this booking.");
             }
 
+            // Anti-fraud check: Prevent student from cancelling if the scheduled start time has arrived or passed
+            if (request.UserId == booking.StudentId)
+            {
+                var nowVietnam = System.DateTime.UtcNow.AddHours(7);
+                if (nowVietnam >= booking.ScheduledStartAt || booking.Status == Domain.Enums.BookingStatus.Completed || booking.Status == Domain.Enums.BookingStatus.Cancelled)
+                {
+                    throw new BadRequestException("Buổi học đã diễn ra hoặc đã bắt đầu, học viên không thể hủy buổi học.");
+                }
+            }
+
             booking.Cancel(request.UserId, request.Reason);
 
             // Bug #6: Wrap refund + update in a single transaction

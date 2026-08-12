@@ -46,11 +46,25 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CompleteBooking
 
             booking.Complete();
 
+            // Split payment: 80% to Tutor, 20% platform fee to Admin
+            decimal tutorAmount = System.Math.Round(booking.CreditAmount * 0.8m, 2);
+            decimal adminAmount = booking.CreditAmount - tutorAmount; // 20%
+
             // Bug #7: Wrap transfer + update in a single transaction
             await _unitOfWork.BeginTransactionAsync();
             try
             {
-                await _creditService.TransferAsync(booking.StudentId, booking.TutorId, booking.CreditAmount, "Payment for completed session", booking.Id);
+                // 1. Transfer 80% to Tutor
+                await _creditService.TransferAsync(booking.StudentId, booking.TutorId, tutorAmount, $"Thanh toán 80% học phí buổi học", booking.Id);
+
+                // 2. Transfer 20% platform fee to Admin
+                var admins = await _userRepository.GetUsersByRoleAsync(Domain.Enums.UserRole.Admin);
+                var admin = System.Linq.Enumerable.FirstOrDefault(admins);
+                if (admin != null)
+                {
+                    await _creditService.TransferAsync(booking.StudentId, admin.Id, adminAmount, $"Phí dịch vụ 20% hệ thống", booking.Id);
+                }
+
                 await _bookingRepository.UpdateAsync(booking);
                 
                 var tutorProfile = await _userRepository.GetTutorProfileAsync(booking.TutorId);
