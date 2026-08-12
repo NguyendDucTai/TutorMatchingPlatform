@@ -45,6 +45,11 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
                 throw new BadRequestException("Chỉ có thể gửi khiếu nại cho buổi học đã hoàn thành.");
             }
 
+            if (!string.IsNullOrEmpty(booking.CancellationReason) && booking.CancellationReason.Contains("[KHIẾU NẠI]"))
+            {
+                throw new BadRequestException("Bạn đã gửi khiếu nại cho buổi học này rồi. Mỗi buổi học chỉ được phép khiếu nại 1 lần duy nhất.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
                 throw new BadRequestException("Vui lòng nhập lý do khiếu nại.");
