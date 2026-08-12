@@ -318,7 +318,7 @@ namespace TutorPlatform.API.Controllers
                 UserId = request.UserId,
                 Amount = request.Amount,
                 Type = 0, // Credit
-                Description = $"Admin approved deposit of {request.Amount:N2} credits.",
+                Description = $"Admin đã phê duyệt nạp {request.Amount:N0} tín chỉ.",
                 BalanceAfter = user.CreditBalance,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
