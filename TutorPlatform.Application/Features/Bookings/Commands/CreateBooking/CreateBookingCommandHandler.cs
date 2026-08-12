@@ -122,7 +122,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CreateBooking
             try
             {
                 await _bookingRepository.AddAsync(booking);
-                await _creditService.DebitAsync(request.StudentId, cost, $"Booking holding for {reqStart.ToString("g")}", bookingId);
+                await _creditService.DebitAsync(request.StudentId, cost, $"Tạm giữ tín chỉ cho buổi học ngày {reqStart:dd/MM/yyyy HH:mm}", bookingId);
                 await _unitOfWork.CommitTransactionAsync();
             }
             catch

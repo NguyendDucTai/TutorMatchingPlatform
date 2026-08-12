@@ -56,7 +56,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.CancelBooking
             await _unitOfWork.BeginTransactionAsync();
             try
             {
-                await _creditService.RefundAsync(booking.StudentId, booking.CreditAmount, "Refund for cancelled booking", booking.Id);
+                await _creditService.RefundAsync(booking.StudentId, booking.CreditAmount, "Hoàn lại tín chỉ do lịch học bị hủy", booking.Id);
                 await _bookingRepository.UpdateAsync(booking);
                 await _unitOfWork.CommitTransactionAsync();
             }
