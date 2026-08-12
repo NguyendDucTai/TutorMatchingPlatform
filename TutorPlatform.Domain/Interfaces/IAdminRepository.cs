@@ -10,7 +10,7 @@ namespace TutorPlatform.Domain.Interfaces
         Task<AdminDashboardStats> GetDashboardStatsAsync();
         Task<PagedResult<PendingTutorResult>> GetPendingTutorsAsync(int pageNumber, int pageSize);
         Task<bool> RejectTutorAsync(Guid tutorUserId);
-        Task<bool> SendTutorApprovalNotificationAsync(Guid tutorUserId, bool isApproved);
+        Task<bool> SendTutorApprovalNotificationAsync(Guid tutorUserId, bool isApproved, string? reason = null);
         Task<bool> SendNewTutorProfileNotificationToAdminAsync(Guid tutorUserId, string tutorFullName);
         Task CheckAndNotifyAdminOnTutorProfileCompletionAsync(Guid tutorUserId);
         Task<AdminRevenueReport> GetRevenueReportAsync(int? year, string filterType, string sortBy);

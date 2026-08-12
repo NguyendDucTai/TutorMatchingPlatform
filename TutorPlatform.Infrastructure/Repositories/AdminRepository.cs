@@ -179,12 +179,26 @@ namespace TutorPlatform.Infrastructure.Repositories
             return true;
         }
 
-        public async Task<bool> SendTutorApprovalNotificationAsync(Guid tutorUserId, bool isApproved)
+        public async Task<bool> SendTutorApprovalNotificationAsync(Guid tutorUserId, bool isApproved, string? reason = null)
         {
             var title = isApproved ? "Hồ sơ của bạn đã được duyệt!" : "Hồ sơ của bạn không được phê duyệt";
-            var message = isApproved 
-                ? "Chúc mừng bạn! Hồ sơ gia sư của bạn đã được phê duyệt thành công. Bây giờ bạn có thể bắt đầu nhận học viên." 
-                : "Hồ sơ của bạn không được phê duyệt. Vui lòng cập nhật thông tin giới thiệu bản thân hoặc bằng cấp và gửi duyệt lại.";
+            string message;
+            if (isApproved)
+            {
+                message = "Chúc mừng bạn! Hồ sơ gia sư của bạn đã được phê duyệt thành công. Bây giờ bạn có thể bắt đầu nhận học viên.";
+            }
+            else
+            {
+                message = "Hồ sơ của bạn không được phê duyệt.";
+                if (!string.IsNullOrWhiteSpace(reason))
+                {
+                    message += $" Lý do từ chối: {reason.Trim()}";
+                }
+                else
+                {
+                    message += " Vui lòng cập nhật thông tin giới thiệu bản thân hoặc bằng cấp và gửi duyệt lại.";
+                }
+            }
 
             var notification = new NotificationDataModel
             {

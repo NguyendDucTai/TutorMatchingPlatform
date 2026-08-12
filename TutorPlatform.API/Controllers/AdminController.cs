@@ -113,9 +113,9 @@ namespace TutorPlatform.API.Controllers
 
         [HttpPut("tutors/{id}/reject")]
         [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> RejectTutor(Guid id)
+        public async Task<IActionResult> RejectTutor(Guid id, [FromBody] RejectTutorRequest? request = null)
         {
-            var command = new RejectTutorCommand(id);
+            var command = new RejectTutorCommand(id, request?.Reason);
             var response = await _mediator.Send(command);
             return Ok(ApiResponse<bool>.Ok(response));
         }
@@ -359,5 +359,10 @@ namespace TutorPlatform.API.Controllers
 
             return Ok(ApiResponse<bool>.Ok(true));
         }
+    }
+
+    public class RejectTutorRequest
+    {
+        public string? Reason { get; set; }
     }
 }

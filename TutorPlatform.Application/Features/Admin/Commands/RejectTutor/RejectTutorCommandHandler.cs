@@ -23,8 +23,8 @@ namespace TutorPlatform.Application.Features.Admin.Commands.RejectTutor
                 throw new NotFoundException("TutorProfile", request.TutorUserId);
             }
 
-            // Send notification to the tutor
-            await _adminRepository.SendTutorApprovalNotificationAsync(request.TutorUserId, isApproved: false);
+            // Send notification to the tutor with rejection reason
+            await _adminRepository.SendTutorApprovalNotificationAsync(request.TutorUserId, isApproved: false, reason: request.Reason);
 
             return true;
         }
