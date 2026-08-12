@@ -84,6 +84,14 @@ namespace TutorPlatform.API.Controllers
                 return BadRequest(ApiResponse<object>.Error(400, $"Lỗi khởi tạo thanh toán VNPAY: {ex.Message}"));
             }
 
+            // Append cancelUrl to VNPay payment URL if provided
+            var paymentUrl = paymentUrlDetail.Url;
+            if (!string.IsNullOrWhiteSpace(command.CancelUrl))
+            {
+                var separator = paymentUrl.Contains('?') ? "&" : "?";
+                paymentUrl = $"{paymentUrl}{separator}vnp_CancelUrl={Uri.EscapeDataString(command.CancelUrl)}";
+            }
+
             long paymentId = paymentUrlDetail.PaymentId;
             Guid depositReqId = LongToGuid(paymentId);
 
@@ -122,14 +130,15 @@ namespace TutorPlatform.API.Controllers
             await _dbContext.DepositRequests.AddAsync(request);
             await _dbContext.SaveChangesAsync();
 
-            return Ok(ApiResponse<string>.Ok(paymentUrlDetail.Url));
+            return Ok(ApiResponse<string>.Ok(paymentUrl));
         }
 
         [HttpGet("vnpay-callback")]
         [AllowAnonymous]
         public async Task<IActionResult> VnpayCallback()
         {
-            string targetFrontendUrl = null;
+            string targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
+            targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
 
             try
             {
@@ -139,13 +148,15 @@ namespace TutorPlatform.API.Controllers
                     var reqGuid = LongToGuid(paymentResult.PaymentId);
                     if (_depositReturnUrls.TryRemove(reqGuid, out var savedOrigin) && !string.IsNullOrWhiteSpace(savedOrigin))
                     {
-                        targetFrontendUrl = savedOrigin;
+                        targetFrontendUrl = savedOrigin.TrimEnd('/');
                     }
 
                     var depositRequest = await _dbContext.DepositRequests.FindAsync(reqGuid);
-                    if (depositRequest != null && depositRequest.Status == 0)
+
+                    // Thanh toan thanh cong (ResponseCode 00)
+                    if (paymentResult.ResponseCode == "00" && depositRequest != null && depositRequest.Status == 0)
                     {
-                        depositRequest.Status = 1; // Success
+                        depositRequest.Status = 1;
                         depositRequest.UpdatedAt = DateTime.UtcNow;
 
                         var user = await _dbContext.Users.FindAsync(depositRequest.UserId);
@@ -158,7 +169,7 @@ namespace TutorPlatform.API.Controllers
                                 Id = Guid.NewGuid(),
                                 UserId = depositRequest.UserId,
                                 Amount = depositRequest.Amount,
-                                Type = 0, // Credit
+                                Type = 0,
                                 Description = $"Nạp tiền thành công qua cổng thanh toán VNPAY. Mã GD: {paymentResult.VnpayTransactionId}",
                                 BalanceAfter = user.CreditBalance,
                                 CreatedAt = DateTime.UtcNow,
@@ -180,13 +191,20 @@ namespace TutorPlatform.API.Controllers
                             await _dbContext.SaveChangesAsync();
                         }
 
-                        if (string.IsNullOrWhiteSpace(targetFrontendUrl))
-                        {
-                            targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
-                        }
-                        targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
                         return Redirect($"{targetFrontendUrl}/wallet?payment=success");
                     }
+
+                    // User huy tren trang VNPay (ResponseCode 24)
+                    if (paymentResult.ResponseCode == "24" && depositRequest != null && depositRequest.Status == 0)
+                    {
+                        depositRequest.Status = 2; // Da huy
+                        depositRequest.UpdatedAt = DateTime.UtcNow;
+                        await _dbContext.SaveChangesAsync();
+                        return Redirect($"{targetFrontendUrl}/wallet?payment=cancelled");
+                    }
+
+                    // That bai (cac ma khac)
+                    return Redirect($"{targetFrontendUrl}/wallet?payment=failed");
                 }
             }
             catch (Exception ex)
@@ -194,12 +212,42 @@ namespace TutorPlatform.API.Controllers
                 Console.WriteLine($"VNPAY Callback Exception: {ex.Message}");
             }
 
-            if (string.IsNullOrWhiteSpace(targetFrontendUrl))
-            {
-                targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
-            }
-            targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
             return Redirect($"{targetFrontendUrl}/wallet?payment=failed");
+        }
+
+        [HttpGet("vnpay-cancel")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VnpayCancel()
+        {
+            string targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "http://localhost:5173";
+            targetFrontendUrl = targetFrontendUrl.TrimEnd('/');
+
+            try
+            {
+                var txnRef = Request.Query["vnp_TxnRef"].ToString();
+                if (!string.IsNullOrEmpty(txnRef) && long.TryParse(txnRef, out var paymentId))
+                {
+                    var reqGuid = LongToGuid(paymentId);
+                    if (_depositReturnUrls.TryRemove(reqGuid, out var savedOrigin) && !string.IsNullOrWhiteSpace(savedOrigin))
+                    {
+                        targetFrontendUrl = savedOrigin.TrimEnd('/');
+                    }
+
+                    var depositRequest = await _dbContext.DepositRequests.FindAsync(reqGuid);
+                    if (depositRequest != null && depositRequest.Status == 0)
+                    {
+                        depositRequest.Status = 2; // Da huy
+                        depositRequest.UpdatedAt = DateTime.UtcNow;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"VnpayCancel error: {ex.Message}");
+            }
+
+            return Redirect($"{targetFrontendUrl}/wallet?payment=cancelled");
         }
 
         [HttpGet("balance")]
