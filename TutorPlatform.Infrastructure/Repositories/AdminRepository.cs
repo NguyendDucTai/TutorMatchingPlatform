@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using TutorPlatform.Application.Contracts.Notifications;
 using TutorPlatform.Domain.Common;
 using TutorPlatform.Domain.Interfaces;
 using TutorPlatform.Infrastructure.Models;
@@ -13,10 +14,12 @@ namespace TutorPlatform.Infrastructure.Repositories
     public class AdminRepository : IAdminRepository
     {
         private readonly ApplicationDbContext _dbContext;
+        private readonly INotificationSender? _notificationSender;
 
-        public AdminRepository(ApplicationDbContext dbContext)
+        public AdminRepository(ApplicationDbContext dbContext, INotificationSender? notificationSender = null)
         {
             _dbContext = dbContext;
+            _notificationSender = notificationSender;
         }
 
         public async Task<AdminDashboardStats> GetDashboardStatsAsync()
@@ -238,6 +241,28 @@ namespace TutorPlatform.Infrastructure.Repositories
 
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
+
+            if (_notificationSender != null)
+            {
+                try
+                {
+                    var dto = new NotificationDto
+                    {
+                        Id = notification.Id,
+                        UserId = adminUser.Id,
+                        Title = notification.Title,
+                        Message = notification.Message,
+                        Type = "TutorApprovalRequest",
+                        RelatedEntityId = tutorUserId,
+                        RelatedEntityType = "TutorApprovalRequest",
+                        IsRead = false,
+                        CreatedAt = notification.CreatedAt
+                    };
+                    await _notificationSender.SendNotificationAsync(adminUser.Id, dto);
+                }
+                catch { }
+            }
+
             return true;
         }
 
@@ -292,6 +317,27 @@ namespace TutorPlatform.Infrastructure.Repositories
 
                 _dbContext.Notifications.Add(notification);
                 await _dbContext.SaveChangesAsync();
+
+                if (_notificationSender != null)
+                {
+                    try
+                    {
+                        var dto = new NotificationDto
+                        {
+                            Id = notification.Id,
+                            UserId = adminUser.Id,
+                            Title = notification.Title,
+                            Message = notification.Message,
+                            Type = "TutorApprovalRequest",
+                            RelatedEntityId = tutorUserId,
+                            RelatedEntityType = "TutorApprovalRequest",
+                            IsRead = false,
+                            CreatedAt = notification.CreatedAt
+                        };
+                        await _notificationSender.SendNotificationAsync(adminUser.Id, dto);
+                    }
+                    catch { }
+                }
             }
         }
 

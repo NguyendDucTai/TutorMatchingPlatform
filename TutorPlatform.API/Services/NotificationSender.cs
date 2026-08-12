@@ -17,7 +17,8 @@ namespace TutorPlatform.API.Services
 
         public async Task SendNotificationAsync(Guid userId, NotificationDto notification)
         {
-            await _hubContext.Clients.Group(userId.ToString()).SendAsync("ReceiveNotification", notification);
+            var userGroupId = userId.ToString().ToLowerInvariant();
+            await _hubContext.Clients.Group(userGroupId).SendAsync("ReceiveNotification", notification);
         }
     }
 }
