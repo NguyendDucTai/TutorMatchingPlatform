@@ -55,14 +55,19 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
                 throw new BadRequestException("Nội dung khiếu nại không được vượt quá 3000 ký tự.");
             }
 
+            var cleanReason = request.Reason.Trim();
             var student = await _userRepository.GetByIdAsync(booking.StudentId);
             var tutor = await _userRepository.GetByIdAsync(booking.TutorId);
             var studentName = student?.FullName ?? "Học viên";
             var tutorName = tutor?.FullName ?? "Gia sư";
             var bookingCode = booking.Id.ToString().Substring(0, Math.Min(8, booking.Id.ToString().Length));
 
-            // Record complaint tag on booking cancellationReason
-            var complaintReasonText = $"[KHIẾU NẠI]: {request.Reason.Trim()}";
+            // Record complaint tag on booking cancellationReason (max 500 chars for DB)
+            var complaintReasonText = $"[KHIẾU NẠI]: {cleanReason}";
+            if (complaintReasonText.Length > 500)
+            {
+                complaintReasonText = complaintReasonText.Substring(0, 497) + "...";
+            }
             
             var reasonProperty = typeof(Booking).GetProperty("CancellationReason");
             if (reasonProperty != null && reasonProperty.CanWrite)
@@ -72,6 +77,19 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
 
             await _bookingRepository.UpdateAsync(booking);
 
+            // Format notification messages safely (max 1000 chars for DB column)
+            var adminMessage = $"Học viên {studentName} đã gửi khiếu nại đối với Gia sư {tutorName} (Buổi học #{bookingCode}). Lý do: \"{cleanReason}\". Vui lòng xem xét và xử lý cảnh cáo gia sư.";
+            if (adminMessage.Length > 1000)
+            {
+                adminMessage = adminMessage.Substring(0, 995) + "...";
+            }
+
+            var tutorMessage = $"Bạn vừa nhận được 1 khiếu nại từ học viên {studentName} cho buổi học #{bookingCode}. Lý do: \"{cleanReason}\". Ban quản trị (Admin) đang xem xét trường hợp này.";
+            if (tutorMessage.Length > 1000)
+            {
+                tutorMessage = tutorMessage.Substring(0, 995) + "...";
+            }
+
             // 1. Notify all Admins
             var admins = await _userRepository.GetUsersByRoleAsync(UserRole.Admin);
             foreach (var admin in admins)
@@ -79,7 +97,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
                 var adminNotification = new Notification(
                     admin.Id,
                     $"🚩 Khiếu nại từ học viên {studentName}",
-                    $"Học viên {studentName} đã gửi khiếu nại đối với Gia sư {tutorName} (Buổi học #{bookingCode}). Lý do: \"{request.Reason.Trim()}\". Vui lòng xem xét và xử lý cảnh cáo gia sư.",
+                    adminMessage,
                     NotificationType.System,
                     booking.Id,
                     "Booking"
@@ -91,7 +109,7 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
             var tutorWarningNotification = new Notification(
                 booking.TutorId,
                 "⚠️ Cảnh cáo khiếu nại từ học viên",
-                $"Bạn vừa nhận được 1 khiếu nại từ học viên {studentName} cho buổi học #{bookingCode}. Lý do: \"{request.Reason.Trim()}\". Ban quản trị (Admin) đang xem xét trường hợp này.",
+                tutorMessage,
                 NotificationType.System,
                 booking.Id,
                 "Booking"
