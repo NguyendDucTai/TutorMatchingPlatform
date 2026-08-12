@@ -156,15 +156,15 @@ namespace TutorPlatform.API.Controllers
                 }
             }
 
-            // Fallback for targetFrontendUrl if not found in dictionary
-            if (string.IsNullOrWhiteSpace(targetFrontendUrl) || targetFrontendUrl.Contains("localhost"))
+            // Fallback for targetFrontendUrl if not found in dictionary or if it points to VNPAY's domain
+            if (string.IsNullOrWhiteSpace(targetFrontendUrl) || targetFrontendUrl.Contains("vnpayment.vn"))
             {
                 var reqOrigin = Request.Headers["Origin"].ToString();
-                if (string.IsNullOrWhiteSpace(reqOrigin))
+                if (string.IsNullOrWhiteSpace(reqOrigin) || reqOrigin.Contains("vnpayment.vn"))
                 {
                     reqOrigin = Request.Headers["Referer"].ToString();
                 }
-                if (!string.IsNullOrWhiteSpace(reqOrigin))
+                if (!string.IsNullOrWhiteSpace(reqOrigin) && !reqOrigin.Contains("vnpayment.vn"))
                 {
                     try
                     {
@@ -173,7 +173,7 @@ namespace TutorPlatform.API.Controllers
                     }
                     catch {}
                 }
-                if (string.IsNullOrWhiteSpace(targetFrontendUrl) || targetFrontendUrl.Contains("localhost"))
+                if (string.IsNullOrWhiteSpace(targetFrontendUrl) || targetFrontendUrl.Contains("vnpayment.vn"))
                 {
                     targetFrontendUrl = _configuration["FrontendUrl"] ?? _configuration["Vnpay:FrontendUrl"] ?? "https://tutormatching-platform.vercel.app";
                 }
