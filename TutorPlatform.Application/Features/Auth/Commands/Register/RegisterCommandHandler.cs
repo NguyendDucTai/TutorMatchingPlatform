@@ -29,7 +29,7 @@ namespace TutorPlatform.Application.Features.Auth.Commands.Register
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
             {
-                return null!;
+                throw new BadRequestException("Tài khoản này đã tồn tại");
             }
 
             var passwordHash = _passwordHasher.HashPassword(request.Password);
