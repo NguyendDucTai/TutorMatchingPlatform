@@ -50,6 +50,11 @@ namespace TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint
                 throw new BadRequestException("Vui lòng nhập lý do khiếu nại.");
             }
 
+            if (request.Reason.Trim().Length > 3000)
+            {
+                throw new BadRequestException("Nội dung khiếu nại không được vượt quá 3000 ký tự.");
+            }
+
             var student = await _userRepository.GetByIdAsync(booking.StudentId);
             var tutor = await _userRepository.GetByIdAsync(booking.TutorId);
             var studentName = student?.FullName ?? "Học viên";
