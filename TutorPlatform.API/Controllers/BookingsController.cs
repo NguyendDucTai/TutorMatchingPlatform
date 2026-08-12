@@ -120,6 +120,22 @@ namespace TutorPlatform.API.Controllers
             return NoContent();
         }
 
+        [HttpPost("{id}/complaint")]
+        [Authorize(Roles = "Student")]
+        public async Task<ActionResult> SubmitComplaint(Guid id, [FromBody] TutorPlatform.Application.Features.Bookings.Commands.SubmitComplaint.SubmitComplaintCommand command)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var studentId))
+            {
+                return Unauthorized();
+            }
+
+            command.BookingId = id;
+            command.StudentId = studentId;
+            await _mediator.Send(command);
+            return Ok(new { message = "Gửi khiếu nại thành công. Ban quản trị sẽ xem xét và xử lý." });
+        }
+
         [HttpGet("me")]
         public async Task<ActionResult> GetMyBookings([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
