@@ -40,7 +40,9 @@ namespace TutorPlatform.Infrastructure.Services
                     Type = 2, // 2 = Debit
                     Description = description,
                     BookingId = bookingId,
-                    CreatedAt = DateTime.UtcNow
+                    BalanceAfter = user.CreditBalance,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 await _dbContext.CreditTransactions.AddAsync(tx);
@@ -77,7 +79,9 @@ namespace TutorPlatform.Infrastructure.Services
                     Type = 4, // 4 = Transfer (received)
                     Description = description,
                     BookingId = bookingId,
-                    CreatedAt = DateTime.UtcNow
+                    BalanceAfter = toUser.CreditBalance,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 await _dbContext.CreditTransactions.AddAsync(tx);
@@ -114,7 +118,9 @@ namespace TutorPlatform.Infrastructure.Services
                     Type = 3, // 3 = Refund
                     Description = description,
                     BookingId = bookingId,
-                    CreatedAt = DateTime.UtcNow
+                    BalanceAfter = user.CreditBalance,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 await _dbContext.CreditTransactions.AddAsync(tx);

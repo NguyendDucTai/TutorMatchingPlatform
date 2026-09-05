@@ -35,6 +35,9 @@ namespace TutorPlatform.Infrastructure
             services.Configure<TutorPlatform.Infrastructure.Configurations.EmailSettings>(configuration.GetSection("EmailSettings"));
             services.AddTransient<TutorPlatform.Application.Common.Interfaces.IEmailService, TutorPlatform.Infrastructure.Services.EmailService>();
 
+            services.Configure<TutorPlatform.Infrastructure.Configurations.CloudinarySettings>(configuration.GetSection("CloudinarySettings"));
+            services.AddScoped<TutorPlatform.Application.Common.Interfaces.IPhotoService, TutorPlatform.Infrastructure.Services.CloudinaryPhotoService>();
+
             services.AddHostedService<TutorPlatform.Infrastructure.Services.OverdueClassNotifierService>();
 
             return services;
